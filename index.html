@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #121212;
+            color: #eee;
+            font-family: 'Courier New', monospace;
+        }
+        canvas {
+            border: 1px solid #333;
+            background-color: #000;
+        }
+        #game-container {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script src="js/grid.js"></script>
+    <script src="js/tower.js"></script>
+    <script src="js/creep.js"></script>
+    <script src="js/pathfinding.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html> 
