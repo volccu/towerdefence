@@ -15,11 +15,19 @@ class Game {
         this.canvas.width = 700;
         this.canvas.height = 600;
         
-        // Game area definition
+        // Game area definition (now UI on right side)
         this.gameArea = {
-            x: 150,
+            x: 0,
             y: 0,
             width: 400,
+            height: 600
+        };
+        
+        // UI panel on right side
+        this.uiPanel = {
+            x: 400,
+            y: 0,
+            width: 300,
             height: 600
         };
         
@@ -34,16 +42,20 @@ class Game {
         
         // Game state
         this.playerLives = 10;
-        this.money = 150; // Starting money
-        this.score = 0;
+        this.money = 500; // Starting money (gold)
+        this.waveReached = 0; // Track highest wave reached
         this.gameOver = false;
         this.debugMode = false;
         this.sellMode = false;
+        this.selectedTower = null; // For tower upgrades
+        this.showRangeWhenPlacing = true; // Show range when placing towers
+        this.buyMode = false; // Track if player has clicked on tower purchase button
         
         // Tower types and costs
         this.towerTypes = [
             {
-                name: "Basic Tower",
+                name: "Perus Torni",
+                description: "Tehokas perustorni",
                 cost: 40,
                 damage: 20,
                 range: 150,
@@ -70,29 +82,113 @@ class Game {
         this.lastSpawnTime = 0;
         this.waveActive = false; // Is wave active
         
-        // UI Buttons
+        // Spawn and home indicators
+        this.spawnPoint = {
+            x: this.gameArea.x + this.gameArea.width / 2,
+            y: 0,
+            radius: 20,
+            color: "#FF9900"
+        };
+        
+        // Home point in the center bottom of the screen
+        this.homePoint = {
+            x: this.gameArea.x + this.gameArea.width / 2,
+            y: this.gameArea.height - 20,
+            radius: 20,
+            color: "#66FF66"
+        };
+        
+        // Home base setup
+        this.baseIsPlaced = false; // Track if base has been placed
+        this.base = null; // Will store the base tower object
+        this.baseType = {
+            name: "Home Base",
+            width: 60,
+            height: 40,
+            color: "#66FF66",
+            strokeColor: "#33CC33"
+        };
+        
+        // UI Buttons (now on right side)
         this.nextWaveButton = {
-            x: 30,
-            y: 550,
-            width: 90,
+            x: this.uiPanel.x + 20,
+            y: this.uiPanel.height - 50,
+            width: 120,
             height: 40,
             text: "NEXT WAVE"
         };
         
         this.sellModeButton = {
-            x: 30,
-            y: 500,
-            width: 90,
+            x: this.uiPanel.x + 160,
+            y: this.uiPanel.height - 50,
+            width: 120,
             height: 40,
             text: "SELL MODE",
             active: false
+        };
+        
+        // Restart button (for game over)
+        this.restartButton = {
+            x: this.canvas.width / 2 - 60,
+            y: this.canvas.height / 2 + 100,
+            width: 120,
+            height: 40,
+            text: "TRY AGAIN"
+        };
+        
+        // Tower upgrade buttons
+        this.upgradeButtons = {
+            damage: {
+                x: this.uiPanel.x + 20,
+                y: 400,
+                width: 80,
+                height: 30,
+                text: "DMG +30%",
+                cost: 50
+            },
+            fireRate: {
+                x: this.uiPanel.x + 110,
+                y: 400,
+                width: 80,
+                height: 30,
+                text: "RATE +20%",
+                cost: 50
+            },
+            range: {
+                x: this.uiPanel.x + 200,
+                y: 400,
+                width: 80,
+                height: 30,
+                text: "RANGE +25%",
+                cost: 50
+            }
+        };
+        
+        // For floating text effects
+        this.floatingTexts = [];
+        
+        // Damage flash effect
+        this.damageFlash = {
+            active: false,
+            duration: 0,
+            maxDuration: 15 // frames
         };
     }
 
     setupEventListeners() {
         // Listen for clicks for tower placement and button presses
         this.canvas.addEventListener('click', (event) => {
-            if (this.gameOver) return;
+            if (this.gameOver) {
+                // Check for restart button
+                const rect = this.canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                if (this.isPointInRect(x, y, this.restartButton)) {
+                    this.restartGame();
+                }
+                return;
+            }
             
             // Get click position in Canvas
             const rect = this.canvas.getBoundingClientRect();
@@ -109,7 +205,24 @@ class Game {
             if (this.isPointInRect(x, y, this.sellModeButton)) {
                 this.sellMode = !this.sellMode;
                 this.sellModeButton.active = this.sellMode;
+                this.selectedTower = null; // Deselect tower when entering sell mode
                 return;
+            }
+            
+            // Check upgrade buttons when tower is selected
+            if (this.selectedTower && !this.sellMode) {
+                if (this.isPointInRect(x, y, this.upgradeButtons.damage)) {
+                    this.upgradeTowerDamage();
+                    return;
+                }
+                if (this.isPointInRect(x, y, this.upgradeButtons.fireRate)) {
+                    this.upgradeTowerFireRate();
+                    return;
+                }
+                if (this.isPointInRect(x, y, this.upgradeButtons.range)) {
+                    this.upgradeTowerRange();
+                    return;
+                }
             }
             
             // Check if click hit tower selection area
@@ -119,6 +232,8 @@ class Game {
                     this.selectedTowerType = i;
                     this.sellMode = false;
                     this.sellModeButton.active = false;
+                    this.selectedTower = null; // Deselect tower when choosing new tower
+                    this.buyMode = true; // Enter buy mode
                     return;
                 }
             }
@@ -135,9 +250,28 @@ class Game {
                     // Try to sell a tower
                     this.sellTower(gridX, gridY);
                 } else {
-                    // Try to place a tower
-                    this.placeTower(gridX, gridY);
+                    // Check if clicked on existing tower
+                    const clickedTower = this.getTowerAt(gridX, gridY);
+                    if (clickedTower) {
+                        this.selectedTower = clickedTower;
+                        this.buyMode = false; // Exit buy mode when selecting a tower
+                        return;
+                    }
+                    
+                    // Try to place a tower if in buy mode
+                    if (this.buyMode) {
+                        this.placeTower(gridX, gridY);
+                        
+                        // Check if tower was successfully placed
+                        if (this.money < this.towerTypes[this.selectedTowerType].cost) {
+                            this.buyMode = false; // Exit buy mode if no more money
+                        }
+                    }
+                    this.selectedTower = null; // Deselect when placing new tower
                 }
+            } else {
+                // If clicked outside game area, deselect tower
+                this.selectedTower = null;
             }
         });
 
@@ -155,16 +289,43 @@ class Game {
             }
             
             // Check mouse over buttons and update cursor
-            if (this.isPointInRect(x, y, this.nextWaveButton) || 
-                this.isPointInRect(x, y, this.sellModeButton)) {
-                document.body.style.cursor = 'pointer';
-            } else {
+            let isOverButton = false;
+            
+            // Check all buttons
+            const buttons = [
+                this.nextWaveButton, 
+                this.sellModeButton
+            ];
+            
+            if (this.gameOver) {
+                buttons.push(this.restartButton);
+            }
+            
+            if (this.selectedTower) {
+                buttons.push(this.upgradeButtons.damage, this.upgradeButtons.fireRate, this.upgradeButtons.range);
+            }
+            
+            for (const button of buttons) {
+                if (this.isPointInRect(x, y, button)) {
+                    document.body.style.cursor = 'pointer';
+                    isOverButton = true;
+                    break;
+                }
+            }
+            
+            // Check tower buttons
+            if (!isOverButton) {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     if (this.isPointInRect(x, y, this.getTowerButtonRect(i))) {
                         document.body.style.cursor = 'pointer';
-                        return;
+                        isOverButton = true;
+                        break;
                     }
                 }
+            }
+            
+            // Reset cursor if not over any button
+            if (!isOverButton && document.body.style.cursor === 'pointer') {
                 document.body.style.cursor = 'default';
             }
             
@@ -206,12 +367,101 @@ class Game {
             }
         });
 
-        // Debug mode toggle (d key)
+        // Right-click to exit buy mode
+        this.canvas.addEventListener('contextmenu', (event) => {
+            // Prevent default context menu
+            event.preventDefault();
+            
+            // Exit buy mode
+            this.buyMode = false;
+            return false;
+        });
+
+        // Debug mode toggle (d key) and Esc to exit buy mode
         window.addEventListener('keydown', (event) => {
             if (event.key === 'd') {
                 this.debugMode = !this.debugMode;
             }
+            
+            // Exit buy mode on Escape key
+            if (event.key === 'Escape') {
+                this.buyMode = false;
+            }
         });
+    }
+
+    restartGame() {
+        // Reset game state
+        this.gameOver = false;
+        this.playerLives = 10;
+        this.money = 500; // 500 gold
+        this.towers = [];
+        this.creeps = [];
+        this.waveNumber = 0;
+        this.creepsToSpawn = 0;
+        this.waveActive = false;
+        this.sellMode = false;
+        this.selectedTower = null;
+        this.selectedTowerType = 0;
+        
+        // Reset grid
+        const cellSize = 20;
+        const cols = Math.floor(this.gameArea.width / cellSize);
+        const rows = Math.floor(this.gameArea.height / cellSize);
+        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x);
+        this.pathfinding = new Pathfinding(this.grid);
+    }
+
+    getTowerAt(gridX, gridY) {
+        for (const tower of this.towers) {
+            if (gridX >= tower.gridX && gridX <= tower.gridX + 1 && 
+                gridY >= tower.gridY && gridY <= tower.gridY + 1) {
+                return tower;
+            }
+        }
+        return null;
+    }
+
+    upgradeTowerDamage() {
+        if (!this.selectedTower) return;
+        
+        const upgradeCost = this.upgradeButtons.damage.cost;
+        
+        if (this.money >= upgradeCost) {
+            this.money -= upgradeCost;
+            // Increase damage by 30%
+            this.selectedTower.damage = Math.floor(this.selectedTower.damage * 1.3);
+            // Increase future upgrade cost
+            this.upgradeButtons.damage.cost = Math.floor(upgradeCost * 1.5);
+        }
+    }
+
+    upgradeTowerFireRate() {
+        if (!this.selectedTower) return;
+        
+        const upgradeCost = this.upgradeButtons.fireRate.cost;
+        
+        if (this.money >= upgradeCost) {
+            this.money -= upgradeCost;
+            // Increase fire rate by 20%
+            this.selectedTower.fireRate *= 1.2;
+            // Increase future upgrade cost
+            this.upgradeButtons.fireRate.cost = Math.floor(upgradeCost * 1.5);
+        }
+    }
+
+    upgradeTowerRange() {
+        if (!this.selectedTower) return;
+        
+        const upgradeCost = this.upgradeButtons.range.cost;
+        
+        if (this.money >= upgradeCost) {
+            this.money -= upgradeCost;
+            // Increase range by 25%
+            this.selectedTower.range = Math.floor(this.selectedTower.range * 1.25);
+            // Increase future upgrade cost
+            this.upgradeButtons.range.cost = Math.floor(upgradeCost * 1.5);
+        }
     }
 
     isPointInRect(x, y, rect) {
@@ -221,8 +471,8 @@ class Game {
     
     getTowerButtonRect(index) {
         return {
-            x: 30,
-            y: 150 + index * 60,
+            x: this.uiPanel.x + 30,
+            y: 200 + index * 60, // Moved down to avoid overlap with "TOWERS" text
             width: 90,
             height: 50
         };
@@ -255,7 +505,8 @@ class Game {
         const towerType = this.towerTypes[this.selectedTowerType];
         
         // Check if tower can be placed and player has enough money
-        if (this.grid.canPlaceTower(gridX, gridY) && this.money >= towerType.cost) {
+        if (this.grid.canPlaceTower(gridX, gridY) && this.money >= towerType.cost && 
+            !this.isPointNearSpawnOrHome(gridX, gridY)) {
             const newTower = new Tower(this, gridX, gridY, towerType);
             this.towers.push(newTower);
             this.grid.placeTower(newTower, gridX, gridY);
@@ -270,6 +521,30 @@ class Game {
                 }
             }
         }
+    }
+    
+    // Check if the point is too close to spawn or home
+    isPointNearSpawnOrHome(gridX, gridY) {
+        const cellSize = this.grid.cellSize;
+        const x = gridX * cellSize + this.gameArea.x + cellSize;
+        const y = gridY * cellSize + cellSize;
+        
+        // Calculate distance to spawn point
+        const spawnDist = Math.sqrt(
+            Math.pow(x - this.spawnPoint.x, 2) + 
+            Math.pow(y - this.spawnPoint.y, 2)
+        );
+        
+        // Calculate distance to home point
+        const homeDist = Math.sqrt(
+            Math.pow(x - this.homePoint.x, 2) + 
+            Math.pow(y - this.homePoint.y, 2)
+        );
+        
+        // Prevent placement if too close
+        const safeDistance = 30;
+        return spawnDist < this.spawnPoint.radius + safeDistance || 
+               homeDist < this.homePoint.radius + safeDistance;
     }
     
     sellTower(gridX, gridY) {
@@ -291,7 +566,16 @@ class Game {
         const index = this.towers.indexOf(tower);
         if (index !== -1) {
             // Refund half the tower cost
-            this.money += Math.floor(tower.cost / 2);
+            const refundAmount = Math.floor(tower.cost / 2);
+            this.money += refundAmount;
+            
+            // Add a floating text effect at the tower's position
+            this.addFloatingText(
+                tower.x + tower.width / 2 + this.gameArea.x,
+                tower.y,
+                `+${refundAmount}`,
+                '#FFFF00'
+            );
             
             // Remove tower from grid
             for (let y = tower.gridY; y <= tower.gridY + 1; y++) {
@@ -305,6 +589,42 @@ class Game {
             
             // Remove from array
             this.towers.splice(index, 1);
+            
+            // If tower was selected, deselect it
+            if (this.selectedTower === tower) {
+                this.selectedTower = null;
+            }
+            
+            // Recalculate paths for creeps
+            for (const creep of this.creeps) {
+                if (creep.isAlive) {
+                    creep.findPath();
+                }
+            }
+        }
+    }
+    
+    destroyTower(tower) {
+        // Remove tower without refund
+        const index = this.towers.indexOf(tower);
+        if (index !== -1) {
+            // Remove tower from grid
+            for (let y = tower.gridY; y <= tower.gridY + 1; y++) {
+                for (let x = tower.gridX; x <= tower.gridX + 1; x++) {
+                    if (x >= 0 && x < this.grid.cols && y >= 0 && y < this.grid.rows) {
+                        this.grid.cells[y][x].occupied = false;
+                        this.grid.cells[y][x].tower = null;
+                    }
+                }
+            }
+            
+            // Remove from array
+            this.towers.splice(index, 1);
+            
+            // If tower was selected, deselect it
+            if (this.selectedTower === tower) {
+                this.selectedTower = null;
+            }
             
             // Recalculate paths for creeps
             for (const creep of this.creeps) {
@@ -322,6 +642,11 @@ class Game {
 
     startNextWave() {
         this.waveNumber++;
+        // Track highest wave reached
+        if (this.waveNumber > this.waveReached) {
+            this.waveReached = this.waveNumber;
+        }
+        
         this.creepsToSpawn = 5 + this.waveNumber * 2; // More creeps each wave
         this.lastSpawnTime = 0;
         this.waveActive = true;
@@ -330,15 +655,40 @@ class Game {
     spawnCreep() {
         if (this.creepsToSpawn <= 0) return;
         
-        // Spawn creep in the center of the top edge
-        const x = this.gameArea.x + this.gameArea.width / 2;
-        const y = 0;
+        // Spawn creep at spawn point
+        const x = this.spawnPoint.x;
+        const y = this.spawnPoint.y;
         
-        // Calculate health & reward based on wave number
-        const health = 80 + this.waveNumber * 20; // More HP in later waves
+        // Calculate health based on wave number (more growth in later waves)
+        const baseHealth = 80;
+        const healthMultiplier = Math.pow(1.2, this.waveNumber);
+        let health = Math.floor(baseHealth * healthMultiplier);
+        let speed = 0.5;
+        let radius = 8;
+        let color = '#FF5500';
         
-        // Create new creep (slower speed = 0.5)
-        const creep = new Creep(this, x, y, health, 0.5);
+        // Check if this is a boss or mini-boss wave
+        let isBoss = false;
+        let isMiniBoss = false;
+        
+        if (this.waveNumber % 10 === 0) {
+            // Boss every 10th wave
+            isBoss = true;
+            health *= 5;  // 5x health
+            speed *= 0.4; // 40% speed
+            radius = 16;  // 2x size
+            color = '#FF0000'; // Red color
+        } else if (this.waveNumber % 5 === 0) {
+            // Mini-boss every 5th wave
+            isMiniBoss = true;
+            health *= 2.5; // 2.5x health
+            speed *= 0.6; // 60% speed
+            radius = 12;  // 1.5x size
+            color = '#FF8800'; // Orange color
+        }
+        
+        // Create new creep with appropriate parameters
+        const creep = new Creep(this, x, y, health, speed, color, radius, isBoss || isMiniBoss);
         this.creeps.push(creep);
         
         this.creepsToSpawn--;
@@ -359,12 +709,17 @@ class Game {
                 if (creep.reachedEnd) {
                     // Creep reached the end
                     this.playerLives--;
+                    // Trigger damage flash
+                    this.damageFlash.active = true;
+                    this.damageFlash.duration = this.damageFlash.maxDuration;
+                } else if (creep.attackingTower) {
+                    // Creep was attacking tower but died
+                    // Tower damage already handled in creep.update()
                 } else {
                     // Creep was killed - give money
                     // Improved economy - more money for later waves
                     const reward = 15 + Math.floor(this.waveNumber * 1.5);
                     this.money += reward;
-                    this.score += 10;
                 }
                 this.creeps.splice(i, 1);
             }
@@ -388,33 +743,123 @@ class Game {
             this.spawnCreep();
             this.lastSpawnTime = currentTime;
         }
+        
+        // Update damage flash effect
+        if (this.damageFlash.active) {
+            this.damageFlash.duration--;
+            if (this.damageFlash.duration <= 0) {
+                this.damageFlash.active = false;
+            }
+        }
+        
+        // Update floating texts
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const text = this.floatingTexts[i];
+            text.y -= 1; // Move upward
+            text.life -= 1; // Decrease life
+            text.alpha = text.life / 60; // Fade out
+            
+            // Remove dead texts
+            if (text.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
+        }
     }
 
     draw() {
-        // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw left UI panel
-        this.drawLeftPanel();
+        // Draw game background
+        this.ctx.fillStyle = '#111';
+        this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
-        // Set clip region to game area
+        // Draw UI panel background
+        this.ctx.fillStyle = '#222';
+        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
+        
+        // Always draw the grid with low opacity
+        this.drawGrid();
+        
+        // Draw spawn point
+        this.ctx.fillStyle = this.spawnPoint.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Draw home point
+        this.ctx.fillStyle = this.homePoint.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Apply clip to prevent tower range circles from appearing over UI
         this.ctx.save();
         this.ctx.beginPath();
         this.ctx.rect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         this.ctx.clip();
-        
-        // Draw grid (offset by game area x)
-        this.grid.draw(this.ctx);
+
+        // Draw tower wireframe at hover position only if in buy mode and has enough money
+        const towerType = this.towerTypes[this.selectedTowerType];
+        if (!this.gameOver && !this.sellMode && this.buyMode && this.money >= towerType.cost) {
+            const towerWidth = 40;
+            const towerHeight = 40;
+            const x = this.hoverX * this.grid.cellSize + this.gameArea.x;
+            const y = this.hoverY * this.grid.cellSize;
+            
+            // Check if tower can be placed here
+            const canPlace = this.grid.canPlaceTower(this.hoverX, this.hoverY) && 
+                            !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
+            
+            this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+            this.ctx.fillRect(x, y, towerWidth, towerHeight);
+            
+            // Show range circle when placing towers if debug mode is on or showRangeWhenPlacing is true
+            if ((this.debugMode || this.showRangeWhenPlacing) && canPlace) {
+                this.ctx.beginPath();
+                this.ctx.arc(
+                    x + towerWidth / 2,
+                    y + towerHeight / 2,
+                    towerType.range,
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.stroke();
+            }
+        }
         
         // Draw towers
         for (const tower of this.towers) {
             tower.draw(this.ctx);
         }
         
-        // Draw tower wireframe if hovering over grid
-        const towerType = this.towerTypes[this.selectedTowerType];
-        if (!this.gameOver && !this.sellMode && this.money >= towerType.cost) {
-            this.drawTowerWireframe(this.hoverX, this.hoverY);
+        // Highlight selected tower and show its range
+        if (this.selectedTower) {
+            const x = this.selectedTower.x + this.gameArea.x;
+            const y = this.selectedTower.y;
+            
+            // Draw range circle
+            this.ctx.beginPath();
+            this.ctx.arc(
+                x + this.selectedTower.width / 2,
+                y + this.selectedTower.height / 2,
+                this.selectedTower.range,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.strokeStyle = 'rgba(255, 255, 100, 0.4)';
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+            
+            // Draw selected highlight
+            this.ctx.strokeStyle = "#FFFF00";
+            this.ctx.lineWidth = 3;
+            this.ctx.strokeRect(x, y, this.selectedTower.width, this.selectedTower.height);
+        }
+        
+        // Draw tower upgrade info if a tower is selected
+        if (this.selectedTower && !this.sellMode) {
+            this.drawTowerUpgradeInfo();
         }
         
         // Draw creeps
@@ -451,8 +896,30 @@ class Game {
             }
         }
         
-        // Restore clip region
+        // Draw floating texts
+        for (const text of this.floatingTexts) {
+            this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(text.text, text.x, text.y);
+        }
+        
+        // Restore clip to draw UI outside game area
         this.ctx.restore();
+        
+        // Draw damage flash effect
+        if (this.damageFlash.active) {
+            const alpha = this.damageFlash.duration / this.damageFlash.maxDuration * 0.5; // max 50% opacity
+            this.ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+        
+        // Draw UI panel background
+        this.ctx.fillStyle = '#222';
+        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
+        
+        // Draw UI elements
+        this.drawUI();
         
         // Draw game over message
         if (this.gameOver) {
@@ -466,68 +933,288 @@ class Game {
             
             this.ctx.fillStyle = '#FFFFFF';
             this.ctx.font = '18px "Courier New", monospace';
-            this.ctx.fillText(`Score: ${this.score}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
-            this.ctx.fillText('Refresh to play again', this.canvas.width / 2, this.canvas.height / 2 + 70);
+            this.ctx.fillText(`You reached wave: ${this.waveReached}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+            
+            // Draw restart button
+            this.ctx.fillStyle = '#4CAF50';
+            this.ctx.fillRect(
+                this.restartButton.x,
+                this.restartButton.y,
+                this.restartButton.width,
+                this.restartButton.height
+            );
+            
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '16px "Courier New", monospace';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(
+                this.restartButton.text,
+                this.restartButton.x + this.restartButton.width / 2,
+                this.restartButton.y + this.restartButton.height / 2
+            );
         }
     }
 
-    drawTowerWireframe(gridX, gridY) {
-        if (this.grid.canPlaceTower(gridX, gridY)) {
-            const x = gridX * this.grid.cellSize + this.gameArea.x;
-            const y = gridY * this.grid.cellSize;
-            const width = this.grid.cellSize * 2;
-            const height = this.grid.cellSize * 2;
-            
-            // Draw wireframe
-            this.ctx.strokeStyle = '#00FFFF';
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([5, 5]);
-            this.ctx.strokeRect(x, y, width, height);
-            this.ctx.setLineDash([]);
-        }
-    }
-    
-    drawLeftPanel() {
-        // Draw panel background
-        this.ctx.fillStyle = '#1A1A1A';
-        this.ctx.fillRect(0, 0, this.gameArea.x, this.canvas.height);
-        
-        // Draw game info
-        this.ctx.fillStyle = '#FFFFFF';
+    drawTowerUpgradeInfo() {
+        // Draw tower upgrade info
+        this.ctx.fillStyle = '#EEEEEE';
         this.ctx.font = '16px "Courier New", monospace';
         this.ctx.textAlign = 'left';
-        this.ctx.textBaseline = 'alphabetic';
+        this.ctx.fillText(`Selected Tower:`, this.uiPanel.x + 20, 350);
+        this.ctx.fillText(`Damage: ${this.selectedTower.damage}`, this.uiPanel.x + 20, 370);
+        this.ctx.fillText(`Rate: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 160, 370);
         
-        this.ctx.fillText(`Wave: ${this.waveNumber}`, 20, 30);
-        this.ctx.fillText(`Lives: ${this.playerLives}`, 20, 60);
-        this.ctx.fillText(`Money: $${this.money}`, 20, 90);
-        this.ctx.fillText(`Score: ${this.score}`, 20, 120);
+        // Draw damage upgrade button
+        this.ctx.fillStyle = this.money >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillRect(
+            this.upgradeButtons.damage.x,
+            this.upgradeButtons.damage.y,
+            this.upgradeButtons.damage.width,
+            this.upgradeButtons.damage.height
+        );
         
-        // Draw tower shop
-        this.ctx.fillText(`Tower Shop:`, 20, 160);
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = '12px "Courier New", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            this.upgradeButtons.damage.text,
+            this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
+            this.upgradeButtons.damage.y + this.upgradeButtons.damage.height / 2
+        );
+        this.ctx.fillText(
+            `${this.upgradeButtons.damage.cost} Gold`,
+            this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
+            this.upgradeButtons.damage.y + this.upgradeButtons.damage.height + 15
+        );
         
-        // Draw tower selection buttons
-        for (let i = 0; i < this.towerTypes.length; i++) {
-            const tower = this.towerTypes[i];
-            const buttonRect = this.getTowerButtonRect(i);
-            
-            // Draw button background
-            this.ctx.fillStyle = this.selectedTowerType === i && !this.sellMode ? '#444444' : '#333333';
-            this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
-            
-            // Draw tower preview
-            this.ctx.fillStyle = tower.color;
-            this.ctx.fillRect(buttonRect.x + 10, buttonRect.y + 15, 20, 20);
-            
-            // Draw tower info
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(`$${tower.cost}`, buttonRect.x + 40, buttonRect.y + 30);
+        // Draw fire rate upgrade button
+        this.ctx.fillStyle = this.money >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillRect(
+            this.upgradeButtons.fireRate.x,
+            this.upgradeButtons.fireRate.y,
+            this.upgradeButtons.fireRate.width,
+            this.upgradeButtons.fireRate.height
+        );
+        
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            this.upgradeButtons.fireRate.text,
+            this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
+            this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height / 2
+        );
+        this.ctx.fillText(
+            `${this.upgradeButtons.fireRate.cost} Gold`,
+            this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
+            this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height + 15
+        );
+        
+        // Draw range upgrade button
+        this.ctx.fillStyle = this.money >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillRect(
+            this.upgradeButtons.range.x,
+            this.upgradeButtons.range.y,
+            this.upgradeButtons.range.width,
+            this.upgradeButtons.range.height
+        );
+        
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            this.upgradeButtons.range.text,
+            this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
+            this.upgradeButtons.range.y + this.upgradeButtons.range.height / 2
+        );
+        this.ctx.fillText(
+            `${this.upgradeButtons.range.cost} Gold`,
+            this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
+            this.upgradeButtons.range.y + this.upgradeButtons.range.height + 15
+        );
+    }
+
+    drawUI() {
+        // Divide UI into sections with better spacing
+        const sections = {
+            gameInfo: { y: 20, height: 80 },
+            towerShop: { y: 120, height: 280 }, // More space for tower info
+            upgradeInfo: { y: 420, height: 100 },
+            gameControls: { y: 520, height: 80 }
+        };
+        
+        // Section dividers
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        this.ctx.lineWidth = 1;
+        for (const section in sections) {
+            if (section !== 'gameControls') { // No line after last section
+                const y = sections[section].y + sections[section].height;
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.uiPanel.x + 10, y);
+                this.ctx.lineTo(this.uiPanel.x + this.uiPanel.width - 10, y);
+                this.ctx.stroke();
+            }
         }
         
-        // Draw Next Wave button
+        // Game info section (no title - removed as requested)
+        this.ctx.font = '18px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.fillText(`Lives: ${this.playerLives}`, this.uiPanel.x + 20, sections.gameInfo.y + 30);
+        this.ctx.fillText(`Gold: ${this.money}`, this.uiPanel.x + 20, sections.gameInfo.y + 60);
+        this.ctx.fillText(`Wave: ${this.waveNumber}`, this.uiPanel.x + 150, sections.gameInfo.y + 60);
+        
+        // Tower shop section
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.fillText('TOWERS', this.uiPanel.x + 20, sections.towerShop.y + 30);
+        
+        // Draw tower selection buttons - improved layout
+        for (let i = 0; i < this.towerTypes.length; i++) {
+            const tower = this.towerTypes[i];
+            // Use whole width for tower button
+            const buttonRect = {
+                x: this.uiPanel.x + 20,
+                y: sections.towerShop.y + 50 + i * 100, // More space between towers
+                width: this.uiPanel.width - 40,
+                height: 80
+            };
+            
+            // Draw button background
+            this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
+            this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+            
+            // Draw tower preview - larger
+            this.ctx.fillStyle = tower.color;
+            this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+            
+            // Draw tower name and cost
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(tower.name, buttonRect.x + 80, buttonRect.y + 30);
+            
+            // Draw cost
+            this.ctx.font = '16px Arial';
+            this.ctx.fillText(`${tower.cost} Gold`, buttonRect.x + 80, buttonRect.y + 55);
+            
+            // Draw stats
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText(`DMG: ${tower.damage} | RATE: ${tower.fireRate} | RANGE: ${tower.range}`, 
+                buttonRect.x + 15, buttonRect.y + 75);
+            
+            // Draw description instead of stats for more info
+            // this.ctx.fillText(tower.description, buttonRect.x + 80, buttonRect.y + 75);
+        }
+        
+        // Only draw upgrade info if a tower is selected
+        if (this.selectedTower && !this.sellMode) {
+            // Title
+            this.ctx.font = 'bold 18px Arial';
+            this.ctx.fillStyle = '#FFF';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText('UPGRADES', this.uiPanel.x + 20, sections.upgradeInfo.y + 30);
+            
+            // Stats
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText(`DMG: ${this.selectedTower.damage}`, this.uiPanel.x + 20, sections.upgradeInfo.y + 60);
+            this.ctx.fillText(`RATE: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 120, sections.upgradeInfo.y + 60);
+            this.ctx.fillText(`RANGE: ${this.selectedTower.range}`, this.uiPanel.x + 220, sections.upgradeInfo.y + 60);
+            
+            // Reposition upgrade buttons to appear under the stats
+            this.upgradeButtons.damage.y = sections.upgradeInfo.y + 75;
+            this.upgradeButtons.fireRate.y = sections.upgradeInfo.y + 75;
+            this.upgradeButtons.range.y = sections.upgradeInfo.y + 75;
+            
+            // Buttons in a row with better spacing
+            this.upgradeButtons.damage.x = this.uiPanel.x + 20;
+            this.upgradeButtons.fireRate.x = this.uiPanel.x + 110;
+            this.upgradeButtons.range.x = this.uiPanel.x + 200;
+            
+            const buttonHeight = 30;
+            
+            // Draw damage upgrade button
+            this.ctx.fillStyle = this.money >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
+            this.ctx.fillRect(
+                this.upgradeButtons.damage.x,
+                this.upgradeButtons.damage.y,
+                this.upgradeButtons.damage.width,
+                buttonHeight
+            );
+            
+            // Draw fire rate upgrade button
+            this.ctx.fillStyle = this.money >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
+            this.ctx.fillRect(
+                this.upgradeButtons.fireRate.x,
+                this.upgradeButtons.fireRate.y,
+                this.upgradeButtons.fireRate.width,
+                buttonHeight
+            );
+            
+            // Draw range upgrade button
+            this.ctx.fillStyle = this.money >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
+            this.ctx.fillRect(
+                this.upgradeButtons.range.x,
+                this.upgradeButtons.range.y,
+                this.upgradeButtons.range.width,
+                buttonHeight
+            );
+            
+            // Draw button texts
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            // Damage button text
+            this.ctx.fillText(
+                this.upgradeButtons.damage.text,
+                this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
+                this.upgradeButtons.damage.y + buttonHeight / 2
+            );
+            
+            // Fire rate button text
+            this.ctx.fillText(
+                this.upgradeButtons.fireRate.text,
+                this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
+                this.upgradeButtons.fireRate.y + buttonHeight / 2
+            );
+            
+            // Range button text
+            this.ctx.fillText(
+                this.upgradeButtons.range.text,
+                this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
+                this.upgradeButtons.range.y + buttonHeight / 2
+            );
+            
+            // Draw costs below buttons
+            this.ctx.font = '10px Arial';
+            this.ctx.fillText(
+                `${this.upgradeButtons.damage.cost}g`,
+                this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
+                this.upgradeButtons.damage.y + buttonHeight + 10
+            );
+            
+            this.ctx.fillText(
+                `${this.upgradeButtons.fireRate.cost}g`,
+                this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
+                this.upgradeButtons.fireRate.y + buttonHeight + 10
+            );
+            
+            this.ctx.fillText(
+                `${this.upgradeButtons.range.cost}g`,
+                this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
+                this.upgradeButtons.range.y + buttonHeight + 10
+            );
+        }
+        
+        // Draw game control buttons in game controls section
+        this.ctx.font = 'bold 18px Arial';
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('CONTROLS', this.uiPanel.x + 20, sections.gameControls.y + 25);
+        
         if (!this.gameOver) {
-            // Draw button
+            // Draw Next Wave button
             if (!this.waveActive) {
                 this.ctx.fillStyle = '#4CAF50'; // Green
             } else {
@@ -543,7 +1230,7 @@ class Game {
             
             // Draw button text
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '14px "Courier New", monospace';
+            this.ctx.font = '16px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillText(
@@ -551,27 +1238,74 @@ class Game {
                 this.nextWaveButton.x + this.nextWaveButton.width / 2,
                 this.nextWaveButton.y + this.nextWaveButton.height / 2
             );
+            
+            // Draw Sell Mode button
+            this.ctx.fillStyle = this.sellModeButton.active ? '#FF4444' : '#666666';
+            this.ctx.fillRect(
+                this.sellModeButton.x,
+                this.sellModeButton.y, 
+                this.sellModeButton.width, 
+                this.sellModeButton.height
+            );
+            
+            // Draw button text
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(
+                this.sellModeButton.text,
+                this.sellModeButton.x + this.sellModeButton.width / 2,
+                this.sellModeButton.y + this.sellModeButton.height / 2
+            );
+        }
+    }
+
+    // Draw the grid with low opacity
+    drawGrid() {
+        this.ctx.strokeStyle = 'rgba(100, 100, 100, 0.2)';
+        this.ctx.lineWidth = 1;
+        
+        // Draw vertical lines
+        for (let x = 0; x <= this.grid.cols; x++) {
+            const xPos = x * this.grid.cellSize + this.gameArea.x;
+            this.ctx.beginPath();
+            this.ctx.moveTo(xPos, 0);
+            this.ctx.lineTo(xPos, this.gameArea.height);
+            this.ctx.stroke();
         }
         
-        // Draw Sell Mode button
-        this.ctx.fillStyle = this.sellModeButton.active ? '#FF4444' : '#666666';
-        this.ctx.fillRect(
-            this.sellModeButton.x,
-            this.sellModeButton.y, 
-            this.sellModeButton.width, 
-            this.sellModeButton.height
-        );
+        // Draw horizontal lines
+        for (let y = 0; y <= this.grid.rows; y++) {
+            const yPos = y * this.grid.cellSize;
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.gameArea.x, yPos);
+            this.ctx.lineTo(this.gameArea.x + this.gameArea.width, yPos);
+            this.ctx.stroke();
+        }
+    }
+
+    // Add a floating text effect
+    addFloatingText(x, y, text, color) {
+        this.floatingTexts.push({
+            x: x,
+            y: y,
+            text: text,
+            color: color,
+            alpha: 1.0,
+            life: 60 // frames the text will live
+        });
+    }
+
+    // Helper function to convert hex color to rgb
+    hexToRgb(hex) {
+        // Remove # if present
+        hex = hex.replace('#', '');
         
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '14px "Courier New", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            this.sellModeButton.text,
-            this.sellModeButton.x + this.sellModeButton.width / 2,
-            this.sellModeButton.y + this.sellModeButton.height / 2
-        );
+        // Parse the values
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        
+        return `${r}, ${g}, ${b}`;
     }
 
     gameLoop(currentTime) {
