@@ -50,6 +50,7 @@ class Game {
         this.assets.loadImage('wall', 'assets/wall.png');
         this.assets.loadImage('scrapper', 'assets/scrapper.png');
         this.assets.loadImage('ground', 'assets/ground.png');
+        this.assets.loadImage('nonground', 'assets/nonground.png');
         this.assets.loadImage('spawn', 'assets/spawn.png');
         this.assets.loadImage('base', 'assets/base.png');
         this.assets.loadImage('button', 'assets/button.png');
@@ -89,7 +90,20 @@ class Game {
         const cellSize = 20 * this.scaleFactor;
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
-        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x);
+
+        // Luo MapGenerator ja generoi kartta
+        this.mapGenerator = new MapGenerator({
+            width: cols,
+            height: rows,
+            startPoints: [{x: Math.floor(cols / 2), y: 0}],
+            endPoints: [{x: Math.floor(cols / 2), y: rows - 1}],
+            obstacleDensity: 0.3,
+            maxAttempts: 10
+        });
+        this.mapData = this.mapGenerator.generateMap();
+
+        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x, this.mapData);
+        this.grid.game = this;
         
         // Pathfinding
         this.pathfinding = new Pathfinding(this.grid);
@@ -172,7 +186,7 @@ class Game {
         // Home point in the center bottom of the screen
         this.homePoint = {
             x: this.gameArea.x + this.gameArea.width / 2,
-            y: this.gameArea.y + this.gameArea.height - 20 * this.scaleFactor,
+            y: this.gameArea.y + this.gameArea.height - 60 * this.scaleFactor, // Siirretään ylemmäs
             radius: 20 * this.scaleFactor,
             color: "#66FF66"
         };
@@ -521,7 +535,13 @@ class Game {
         const cellSize = 20 * this.scaleFactor;
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
-        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x);
+
+        // Generoi uusi kartta
+        this.mapData = this.mapGenerator.generateMap();
+        
+        // Päivitä grid käyttämään uutta karttaa
+        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x, this.mapData);
+        this.grid.game = this;
         this.pathfinding = new Pathfinding(this.grid);
     }
 
@@ -638,7 +658,7 @@ class Game {
         let canPlace = true;
         
         if (towerType.name === "Wall") {
-            // Check if the single cell is occupied
+            // Check if the single cell is occupied or is an obstacle
             if (this.grid.isCellOccupied(gridX, gridY)) {
                 canPlace = false;
             }
@@ -649,7 +669,7 @@ class Game {
             }
         } else {
             // Regular tower takes 2x2 cells
-            // Check if any of the 2x2 cells are occupied
+            // Check if any of the 2x2 cells are occupied or are obstacles
             for (let y = gridY; y < gridY + 2; y++) {
                 for (let x = gridX; x < gridX + 2; x++) {
                     if (x >= this.grid.cols || y >= this.grid.rows || this.grid.isCellOccupied(x, y)) {
@@ -990,24 +1010,6 @@ class Game {
         this.ctx.fillStyle = '#111';
         this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
-        // Draw ground tiles
-        if (this.assets.isReady()) {
-            const groundImg = this.assets.getImage('ground');
-            const tileSize = this.grid.cellSize * 2; // 2x2 grid cells
-            
-            for (let y = 0; y < this.gameArea.height; y += tileSize) {
-                for (let x = 0; x < this.gameArea.width; x += tileSize) {
-                    this.ctx.drawImage(
-                        groundImg,
-                        this.gameArea.x + x,
-                        this.gameArea.y + y,
-                        tileSize,
-                        tileSize
-                    );
-                }
-            }
-        }
-        
         // Draw UI panel background
         this.ctx.fillStyle = '#222';
         this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
@@ -1015,8 +1017,8 @@ class Game {
         // Draw stats
         this.drawStats();
         
-        // Always draw the grid with low opacity
-        this.drawGrid();
+        // Draw grid (includes ground and nonground tiles)
+        this.grid.draw(this.ctx);
         
         // Draw spawn point with image
         if (this.assets.isReady()) {

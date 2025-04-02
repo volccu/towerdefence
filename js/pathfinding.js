@@ -30,19 +30,21 @@ class Pathfinding {
 
             // Check that neighbor is within grid bounds
             if (x >= 0 && x < grid.cols && y >= 0 && y < grid.rows) {
-                // Check that neighbor isn't occupied
-                if (!grid.cells[y][x].occupied) {
+                const cell = grid.cells[y][x];
+                // Salli liikkuminen vain jos ruutu ei ole occupied tai obstacle
+                if (!cell.occupied && !cell.isObstacle) {
                     // For diagonal movement, need to check if both adjacent cardinal cells are free
                     if (dir.x !== 0 && dir.y !== 0) {
                         // This is a diagonal move, check if the two adjacent cells are walkable
-                        const adjX = grid.cells[node.y][node.x + dir.x].occupied;
-                        const adjY = grid.cells[node.y + dir.y][node.x].occupied;
+                        const adjXCell = grid.cells[node.y][node.x + dir.x];
+                        const adjYCell = grid.cells[node.y + dir.y][node.x];
                         
-                        // If either adjacent cell is blocked, can't move diagonally
-                        if (adjX || adjY) continue;
+                        // Jos jompikumpi viereisistä ruuduista on este tai occupied, ei voi liikkua diagonaalisesti
+                        if (adjXCell.occupied || adjXCell.isObstacle || adjYCell.occupied || adjYCell.isObstacle) {
+                            continue;
+                        }
                     }
-                    
-                    neighbors.push(grid.cells[y][x]);
+                    neighbors.push(cell);
                 }
             }
         }

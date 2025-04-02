@@ -166,10 +166,10 @@ class Creep {
             const gridX = Math.floor((this.x - this.game.gameArea.x) / this.game.grid.cellSize);
             const gridY = Math.floor((this.y - this.game.gameArea.y) / this.game.grid.cellSize);
             
-            // If current cell is occupied, find new path
+            // If current cell is occupied or an obstacle, find new path
             if (gridX >= 0 && gridX < this.game.grid.cols && 
                 gridY >= 0 && gridY < this.game.grid.rows && 
-                this.game.grid.cells[gridY][gridX].occupied) {
+                (this.game.grid.cells[gridY][gridX].occupied || this.game.grid.cells[gridY][gridX].isObstacle)) {
                 // Move back slightly to avoid getting stuck
                 if (this.path && this.pathIndex < this.path.length) {
                     const pathPoint = this.path[this.pathIndex];
