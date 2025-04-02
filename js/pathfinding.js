@@ -6,17 +6,22 @@ class Pathfinding {
 
     // Heuristic function: estimate of distance between two points (Manhattan distance)
     heuristic(a, b) {
-        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        // Changed to Euclidean distance for diagonal movement
+        return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
     }
 
     // Returns list of neighboring cells that aren't occupied
     getNeighbors(node, grid) {
         const neighbors = [];
         const directions = [
-            { x: 0, y: -1 }, // up
-            { x: 1, y: 0 },  // right
-            { x: 0, y: 1 },  // down
-            { x: -1, y: 0 }  // left
+            { x: 0, y: -1 },  // up
+            { x: 1, y: 0 },   // right
+            { x: 0, y: 1 },   // down
+            { x: -1, y: 0 },  // left
+            { x: 1, y: -1 },  // up-right (diagonal)
+            { x: 1, y: 1 },   // down-right (diagonal)
+            { x: -1, y: 1 },  // down-left (diagonal)
+            { x: -1, y: -1 }  // up-left (diagonal)
         ];
 
         for (const dir of directions) {
@@ -27,6 +32,16 @@ class Pathfinding {
             if (x >= 0 && x < grid.cols && y >= 0 && y < grid.rows) {
                 // Check that neighbor isn't occupied
                 if (!grid.cells[y][x].occupied) {
+                    // For diagonal movement, need to check if both adjacent cardinal cells are free
+                    if (dir.x !== 0 && dir.y !== 0) {
+                        // This is a diagonal move, check if the two adjacent cells are walkable
+                        const adjX = grid.cells[node.y][node.x + dir.x].occupied;
+                        const adjY = grid.cells[node.y + dir.y][node.x].occupied;
+                        
+                        // If either adjacent cell is blocked, can't move diagonally
+                        if (adjX || adjY) continue;
+                    }
+                    
                     neighbors.push(grid.cells[y][x]);
                 }
             }

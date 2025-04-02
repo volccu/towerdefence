@@ -22,11 +22,28 @@
         #game-container {
             position: relative;
         }
+        
+        /* Näkymätön img-elementti kuvien esilataamista varten */
+        .preload {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            left: -9999px;
+            top: -9999px;
+        }
     </style>
 </head>
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+    </div>
+    
+    <!-- Preload kuvat -->
+    <div class="preload">
+        <img src="assets/creep.png" alt="preload" />
+        <img src="assets/tower.png" alt="preload" />
+        <img src="assets/wall.png" alt="preload" />
     </div>
 
     <script src="js/grid.js"></script>

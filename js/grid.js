@@ -115,4 +115,35 @@ class Grid {
             }
         }
     }
+
+    // Check if a single cell is occupied
+    isCellOccupied(gridX, gridY) {
+        // Check within bounds
+        if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+            return true; // Out of bounds is considered occupied
+        }
+        
+        return this.cells[gridY][gridX].occupied;
+    }
+    
+    // Mark a single cell as occupied
+    markCellOccupied(gridX, gridY) {
+        if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+            return false; // Can't mark out of bounds
+        }
+        
+        this.cells[gridY][gridX].occupied = true;
+        return true;
+    }
+    
+    // Mark a single cell as unoccupied (for removal)
+    markCellUnoccupied(gridX, gridY) {
+        if (gridX < 0 || gridX >= this.cols || gridY < 0 || gridY >= this.rows) {
+            return false; // Can't mark out of bounds
+        }
+        
+        this.cells[gridY][gridX].occupied = false;
+        this.cells[gridY][gridX].tower = null;
+        return true;
+    }
 } 

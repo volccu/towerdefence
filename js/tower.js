@@ -1,3 +1,21 @@
+/**
+ * Sprite-kuvien lisääminen peliin:
+ * 
+ * 1. Luo kuvatiedosto (suositeltu formaatti: PNG, läpinäkyvyydellä)
+ * 2. Tallenna kuva assets-kansioon
+ * 3. Lataa kuva pelin alustuksessa (Game-luokan initialize-metodissa):
+ *    this.assets.loadImage('kuvannimi', 'assets/kuvatiedosto.png');
+ * 4. Käytä kuvaa objektien piirtämisessä:
+ *    - const img = this.game.assets.getImage('kuvannimi');
+ *    - ctx.drawImage(img, x, y, width, height);
+ * 
+ * Suositellut kuvakoot:
+ * - Torni: 40x40 pikseliä (2x2 grid)
+ * - Seinä: 20x20 pikseliä (1x1 grid)
+ * - Creep: 16x16 pikseliä (piirretään radius*2 kokoiseksi)
+ * - Projektiilit: 6x6 pikseliä
+ */
+
 class Projectile {
     constructor(x, y, targetCreep, damage, speed = 5, color = '#00FFFF') {
         this.x = x;
@@ -36,10 +54,16 @@ class Projectile {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
+        // Tulevaisuudessa mahdollinen projektiilikuvan käyttö:
+        // if (this.game.assets && this.game.assets.isReady() && this.game.assets.getImage('projectile')) {
+        //     const projImg = this.game.assets.getImage('projectile');
+        //     ctx.drawImage(projImg, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+        // } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+        // }
     }
 }
 
@@ -49,7 +73,7 @@ class Tower {
         this.gridX = gridX;
         this.gridY = gridY;
         this.x = gridX * game.grid.cellSize;
-        this.y = gridY * game.grid.cellSize;
+        this.y = gridY * game.grid.cellSize + game.gameArea.y;
         this.width = game.grid.cellSize * 2;  // 2x2 grid cells
         this.height = game.grid.cellSize * 2;
         
@@ -61,6 +85,7 @@ class Tower {
         this.color = towerType.color;
         this.strokeColor = towerType.strokeColor;
         this.cost = towerType.cost;
+        this.isWall = false; // Default value
         
         this.lastFireTime = 0;
         this.projectiles = [];
@@ -131,14 +156,19 @@ class Tower {
         // Calculate position with offset
         const drawX = this.x + this.game.gameArea.x;
         
-        // Draw the tower square
-        ctx.fillStyle = this.color;
-        ctx.fillRect(drawX, this.y, this.width, this.height);
-        
-        // Draw border
-        ctx.strokeStyle = this.strokeColor;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(drawX, this.y, this.width, this.height);
+        // Käytä tower-kuvaa
+        if (this.game.assets && this.game.assets.isReady()) {
+            const towerImg = this.game.assets.getImage('tower');
+            ctx.drawImage(towerImg, drawX, this.y, this.width, this.height);
+        } else {
+            // Fallback jos kuva ei ole vielä latautunut
+            ctx.fillStyle = this.color;
+            ctx.fillRect(drawX, this.y, this.width, this.height);
+            
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(drawX, this.y, this.width, this.height);
+        }
 
         // Draw range (visible only in debug mode)
         if (this.game.debugMode) {
@@ -158,6 +188,55 @@ class Tower {
         // Draw projectiles
         for (const projectile of this.projectiles) {
             projectile.draw(ctx);
+        }
+    }
+}
+
+// Wall class - special tower type that doesn't attack but blocks paths
+class Wall extends Tower {
+    constructor(game, gridX, gridY, wallType) {
+        super(game, gridX, gridY, wallType);
+        
+        // Override sizes for wall (1x1 instead of 2x2)
+        this.width = game.grid.cellSize;
+        this.height = game.grid.cellSize;
+        this.isWall = true;
+    }
+    
+    // Override update to do nothing (walls don't shoot)
+    update() {
+        // Walls don't do anything actively
+        return;
+    }
+    
+    // Override the shooting mechanism (walls don't shoot)
+    findTargetAndShoot() {
+        // Do nothing
+        return;
+    }
+    
+    shoot() {
+        // Do nothing
+        return;
+    }
+    
+    // Override draw to show wall sprite
+    draw(ctx) {
+        // Calculate position with offset
+        const drawX = this.x + this.game.gameArea.x;
+        
+        // Käytä wall-kuvaa
+        if (this.game.assets && this.game.assets.isReady()) {
+            const wallImg = this.game.assets.getImage('wall');
+            ctx.drawImage(wallImg, drawX, this.y, this.width, this.height);
+        } else {
+            // Fallback jos kuva ei ole vielä latautunut
+            ctx.fillStyle = this.color;
+            ctx.fillRect(drawX, this.y, this.width, this.height);
+            
+            ctx.strokeStyle = this.strokeColor;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(drawX, this.y, this.width, this.height);
         }
     }
 } 
