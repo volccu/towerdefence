@@ -50,37 +50,43 @@ class Game {
         this.assets.loadImage('wall', 'assets/wall.png');
         this.assets.loadImage('scrapper', 'assets/scrapper.png');
         this.assets.loadImage('ground', 'assets/ground.png');
+        this.assets.loadImage('spawn', 'assets/spawn.png');
+        this.assets.loadImage('base', 'assets/base.png');
+        this.assets.loadImage('button', 'assets/button.png');
+        
+        // Resoluution skaalaustekijä (1.5 = 50% suurempi)
+        this.scaleFactor = 1.5;
         
         // Canvas size - wider to accommodate UI panels
-        this.canvas.width = 700;
-        this.canvas.height = 680; // More height for stats on top
+        this.canvas.width = 900 * this.scaleFactor;
+        this.canvas.height = 800 * this.scaleFactor;
         
         // Stats panel on top
         this.statsPanel = {
             x: 0,
             y: 0,
-            width: 700,
-            height: 80
+            width: 900 * this.scaleFactor,
+            height: 80 * this.scaleFactor
         };
         
         // Game area definition (now below stats)
         this.gameArea = {
             x: 0,
             y: this.statsPanel.height, // Below stats
-            width: 400,
-            height: 600
+            width: 600 * this.scaleFactor,
+            height: 720 * this.scaleFactor
         };
         
         // UI panel on right side
         this.uiPanel = {
-            x: 400,
+            x: 600 * this.scaleFactor,
             y: this.statsPanel.height, // Below stats
-            width: 300,
-            height: 600
+            width: 300 * this.scaleFactor,
+            height: 720 * this.scaleFactor
         };
         
         // Grid (small cells)
-        const cellSize = 20;
+        const cellSize = 20 * this.scaleFactor;
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
         this.grid = new Grid(cols, rows, cellSize, this.gameArea.x);
@@ -98,6 +104,8 @@ class Game {
         this.selectedTower = null; // For tower upgrades
         this.showRangeWhenPlacing = true; // Show range when placing towers
         this.buyMode = false; // Track if player has clicked on tower purchase button
+        this.isContinuousBuild = false; // Track if player is holding mouse button to build continuously
+        this.hoveredTowerType = -1; // Track which tower type is being hovered over
         
         // Tower types and costs
         this.towerTypes = [
@@ -106,7 +114,7 @@ class Game {
                 description: "Tehokas puolustusjärjestelmä",
                 cost: 40,
                 damage: 20,
-                range: 150,
+                range: 150 * this.scaleFactor,
                 fireRate: 1,
                 color: "#00AAFF",
                 strokeColor: "#0088CC"
@@ -157,15 +165,15 @@ class Game {
         this.spawnPoint = {
             x: this.gameArea.x + this.gameArea.width / 2,
             y: this.gameArea.y, // Takaisin alkuperäiseen sijaintiin
-            radius: 20,
+            radius: 20 * this.scaleFactor,
             color: "#FF9900"
         };
         
         // Home point in the center bottom of the screen
         this.homePoint = {
             x: this.gameArea.x + this.gameArea.width / 2,
-            y: this.gameArea.y + this.gameArea.height - 20,
-            radius: 20,
+            y: this.gameArea.y + this.gameArea.height - 20 * this.scaleFactor,
+            radius: 20 * this.scaleFactor,
             color: "#66FF66"
         };
         
@@ -174,62 +182,62 @@ class Game {
         this.base = null; // Will store the base tower object
         this.baseType = {
             name: "Home Base",
-            width: 60,
-            height: 40,
+            width: 60 * this.scaleFactor,
+            height: 40 * this.scaleFactor,
             color: "#66FF66",
             strokeColor: "#33CC33"
         };
         
         // UI Buttons (now on top stats bar)
         this.nextWaveButton = {
-            x: this.statsPanel.x + 420,
-            y: this.statsPanel.y + 20,
-            width: 120,
-            height: 40,
+            x: this.statsPanel.x + 620 * this.scaleFactor,
+            y: this.statsPanel.y + 20 * this.scaleFactor,
+            width: 120 * this.scaleFactor,
+            height: 40 * this.scaleFactor,
             text: "NEXT WAVE"
         };
         
         this.scrapModeButton = {
-            x: this.statsPanel.x + 560,
-            y: this.statsPanel.y + 20,
-            width: 120,
-            height: 40,
+            x: this.statsPanel.x + 760 * this.scaleFactor,
+            y: this.statsPanel.y + 20 * this.scaleFactor,
+            width: 120 * this.scaleFactor,
+            height: 40 * this.scaleFactor,
             text: "SCRAP",
             active: false
         };
         
         // Restart button (for game over)
         this.restartButton = {
-            x: this.canvas.width / 2 - 60,
-            y: this.canvas.height / 2 + 100,
-            width: 120,
-            height: 40,
+            x: this.canvas.width / 2 - 60 * this.scaleFactor,
+            y: this.canvas.height / 2 + 100 * this.scaleFactor,
+            width: 120 * this.scaleFactor,
+            height: 40 * this.scaleFactor,
             text: "TRY AGAIN"
         };
         
         // Tower upgrade buttons
         this.upgradeButtons = {
             damage: {
-                x: this.uiPanel.x + 20,
-                y: 400,
-                width: 80,
-                height: 30,
+                x: this.uiPanel.x + 20 * this.scaleFactor,
+                y: 500 * this.scaleFactor,
+                width: 80 * this.scaleFactor,
+                height: 30 * this.scaleFactor,
                 text: "DMG +30%",
                 cost: 50
             },
             fireRate: {
-                x: this.uiPanel.x + 110,
-                y: 400,
-                width: 80,
-                height: 30,
+                x: this.uiPanel.x + 110 * this.scaleFactor,
+                y: 500 * this.scaleFactor,
+                width: 80 * this.scaleFactor,
+                height: 30 * this.scaleFactor,
                 text: "RATE +20%",
                 cost: 50
             },
             range: {
-                x: this.uiPanel.x + 200,
-                y: 400,
-                width: 80,
-                height: 30,
+                x: this.uiPanel.x + 200 * this.scaleFactor,
+                y: 500 * this.scaleFactor,
+                width: 80 * this.scaleFactor,
+                height: 30 * this.scaleFactor,
                 text: "RANGE +25%",
                 cost: 50
             }
@@ -300,10 +308,10 @@ class Game {
             // Check if click hit tower selection buttons
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
-                    x: this.uiPanel.x + 20,
-                    y: this.uiPanel.y + 50 + i * 100,
-                    width: this.uiPanel.width - 40,
-                    height: 80
+                    x: this.uiPanel.x + 20 * this.scaleFactor,
+                    y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                    width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                    height: 80 * this.scaleFactor
                 };
                 
                 if (this.isPointInRect(x, y, buttonRect)) {
@@ -366,10 +374,13 @@ class Game {
                 
                 // Try to place tower if mouse is pressed and in buy mode
                 if (event.buttons === 1 && this.buyMode && !this.scrapMode) {
+                    this.isContinuousBuild = true;
                     const towerType = this.towerTypes[this.selectedTowerType];
                     if (this.scraps >= towerType.cost) {
                         this.placeTower(this.hoverX, this.hoverY);
                     }
+                } else {
+                    this.isContinuousBuild = false;
                 }
             }
             
@@ -403,17 +414,23 @@ class Game {
             if (!isOverButton) {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
-                        x: this.uiPanel.x + 20,
-                        y: this.uiPanel.y + 50 + i * 100,
-                        width: this.uiPanel.width - 40,
-                        height: 80
+                        x: this.uiPanel.x + 20 * this.scaleFactor,
+                        y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                        width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                        height: 80 * this.scaleFactor
                     };
                     
                     if (this.isPointInRect(mouseX, mouseY, buttonRect)) {
                         document.body.style.cursor = 'pointer';
                         isOverButton = true;
+                        this.hoveredTowerType = i;
                         break;
                     }
+                }
+                
+                // Reset hovered tower type if not over any tower button
+                if (!isOverButton) {
+                    this.hoveredTowerType = -1;
                 }
             }
             
@@ -458,6 +475,9 @@ class Game {
                     this.selectedTowers = [];
                 }
             }
+            
+            // Reset continuous build mode
+            this.isContinuousBuild = false;
         });
 
         // Right-click to exit buy mode
@@ -498,7 +518,7 @@ class Game {
         this.selectedTowerType = 0;
         
         // Reset grid
-        const cellSize = 20;
+        const cellSize = 20 * this.scaleFactor;
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
         this.grid = new Grid(cols, rows, cellSize, this.gameArea.x);
@@ -510,7 +530,7 @@ class Game {
             if (tower.isWall) {
                 // Wall is just 1x1
                 if (tower.gridX === gridX && tower.gridY === gridY) {
-                    return tower;
+                return tower;
                 }
             } else {
                 // Regular tower is 2x2
@@ -572,10 +592,10 @@ class Game {
     
     getTowerButtonRect(index) {
         return {
-            x: this.uiPanel.x + 20,
-            y: 120 + 50 + index * 100, // Match with drawUI values
-            width: this.uiPanel.width - 40,
-            height: 80
+            x: this.uiPanel.x + 20 * this.scaleFactor,
+            y: 120 * this.scaleFactor + 50 * this.scaleFactor + index * 100 * this.scaleFactor, // Match with drawUI values
+            width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+            height: 80 * this.scaleFactor
         };
     }
     
@@ -607,7 +627,10 @@ class Game {
         
         // Check if player has enough scraps
         if (this.scraps < towerType.cost) {
-            this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000");
+            // Only show "not enough scraps" message if not in continuous build mode
+            if (!this.isContinuousBuild) {
+                this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000");
+            }
             return false;
         }
 
@@ -646,7 +669,10 @@ class Game {
         }
 
         if (!canPlace) {
-            this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Cannot place here!", "#FF0000");
+            // Only show "cannot place here" message if not in continuous build mode
+            if (!this.isContinuousBuild) {
+                this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Cannot place here!", "#FF0000");
+            }
             return false;
         }
 
@@ -700,7 +726,7 @@ class Game {
         );
         
         // Prevent placement if too close
-        const safeDistance = 30;
+        const safeDistance = 30 * this.scaleFactor;
         return spawnDist < this.spawnPoint.radius + safeDistance || 
                homeDist < this.homePoint.radius + safeDistance;
     }
@@ -723,11 +749,11 @@ class Game {
                 if (gridX >= tower.gridX && gridX < tower.gridX + 2 &&
                     gridY >= tower.gridY && gridY < tower.gridY + 2) {
                     towerToScrap = tower;
-                    break;
-                }
+                break;
             }
         }
-        
+    }
+    
         if (towerToScrap) {
             this.scrapTowerObject(towerToScrap);
             return true;
@@ -764,10 +790,10 @@ class Game {
         if (index !== -1) {
             this.towers.splice(index, 1);
         }
-        
+            
         // If this was the selected tower, clear selection
-        if (this.selectedTower === tower) {
-            this.selectedTower = null;
+            if (this.selectedTower === tower) {
+                this.selectedTower = null;
         }
     }
     
@@ -831,7 +857,7 @@ class Game {
         const healthMultiplier = Math.pow(1.2, this.waveNumber);
         let health = Math.floor(baseHealth * healthMultiplier);
         let speed = 0.5;
-        let radius = 8;
+        let radius = 8 * this.scaleFactor;
         let color = '#FF5500';
         
         // Check if this is a boss or mini-boss wave
@@ -843,7 +869,7 @@ class Game {
             isBoss = true;
             health *= 3;  // Reduced from 5x to 3x
             speed *= 0.5; // Slightly faster than before
-            radius = 16;
+            radius = 16 * this.scaleFactor;
             color = '#FF0000';
             this.creepsToSpawn = Math.min(5, this.creepsToSpawn); // Max 5 bosses
         } else if (this.waveNumber % 5 === 0) {
@@ -851,7 +877,7 @@ class Game {
             isMiniBoss = true;
             health *= 2;  // Reduced from 2.5x to 2x
             speed *= 0.7; // Faster than before
-            radius = 12;
+            radius = 12 * this.scaleFactor;
             color = '#FF8800';
         }
         
@@ -992,17 +1018,43 @@ class Game {
         // Always draw the grid with low opacity
         this.drawGrid();
         
-        // Draw spawn point
+        // Draw spawn point with image
+        if (this.assets.isReady()) {
+            const spawnImg = this.assets.getImage('spawn');
+            const spawnSize = this.spawnPoint.radius * 2;
+            this.ctx.drawImage(
+                spawnImg,
+                this.spawnPoint.x - spawnSize / 2,
+                this.spawnPoint.y - spawnSize / 2,
+                spawnSize,
+                spawnSize
+            );
+        } else {
+            // Fallback to circle if image not loaded
         this.ctx.fillStyle = this.spawnPoint.color;
         this.ctx.beginPath();
         this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
         this.ctx.fill();
+        }
         
-        // Draw home point
+        // Draw home point with image
+        if (this.assets.isReady()) {
+            const baseImg = this.assets.getImage('base');
+            const baseSize = this.homePoint.radius * 2;
+            this.ctx.drawImage(
+                baseImg,
+                this.homePoint.x - baseSize / 2,
+                this.homePoint.y - baseSize / 2,
+                baseSize,
+                baseSize
+            );
+        } else {
+            // Fallback to circle if image not loaded
         this.ctx.fillStyle = this.homePoint.color;
         this.ctx.beginPath();
         this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
         this.ctx.fill();
+        }
         
         // Apply clip to prevent tower range circles from appearing over UI
         this.ctx.save();
@@ -1023,10 +1075,10 @@ class Game {
             if (towerType.name === "Wall") {
                 // Wall only takes one cell
                 canPlace = !this.grid.isCellOccupied(this.hoverX, this.hoverY) && 
-                          !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
-                          
+                            !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
+            
                 // Draw 1x1 wireframe for wall
-                this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+            this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(x, y, this.grid.cellSize, this.grid.cellSize);
                 
             } else {
@@ -1037,19 +1089,19 @@ class Game {
                 // Draw 2x2 wireframe for tower
                 this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(x, y, this.grid.cellSize * 2, this.grid.cellSize * 2);
-                
-                // Show range circle when placing towers if debug mode is on or showRangeWhenPlacing is true
-                if ((this.debugMode || this.showRangeWhenPlacing) && canPlace) {
-                    this.ctx.beginPath();
-                    this.ctx.arc(
+            
+            // Show range circle when placing towers if debug mode is on or showRangeWhenPlacing is true
+            if ((this.debugMode || this.showRangeWhenPlacing) && canPlace) {
+                this.ctx.beginPath();
+                this.ctx.arc(
                         x + this.grid.cellSize, // center of 2x2 grid
                         y + this.grid.cellSize,
-                        towerType.range,
-                        0,
-                        Math.PI * 2
-                    );
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    this.ctx.stroke();
+                    towerType.range,
+                    0,
+                    Math.PI * 2
+                );
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.stroke();
                 }
             }
         }
@@ -1187,9 +1239,9 @@ class Game {
         this.ctx.fillStyle = '#EEEEEE';
         this.ctx.font = '16px "Courier New", monospace';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(`Selected Tower:`, this.uiPanel.x + 20, 350);
-        this.ctx.fillText(`Damage: ${this.selectedTower.damage}`, this.uiPanel.x + 20, 370);
-        this.ctx.fillText(`Rate: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 160, 370);
+        this.ctx.fillText(`Selected Tower:`, this.uiPanel.x + 20 * this.scaleFactor, 350 * this.scaleFactor);
+        this.ctx.fillText(`Damage: ${this.selectedTower.damage}`, this.uiPanel.x + 20 * this.scaleFactor, 370 * this.scaleFactor);
+        this.ctx.fillText(`Rate: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 160 * this.scaleFactor, 370 * this.scaleFactor);
         
         // Draw damage upgrade button
         this.ctx.fillStyle = this.scraps >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
@@ -1212,7 +1264,7 @@ class Game {
         this.ctx.fillText(
             `${this.upgradeButtons.damage.cost} Scraps`,
             this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
-            this.upgradeButtons.damage.y + this.upgradeButtons.damage.height + 15
+            this.upgradeButtons.damage.y + this.upgradeButtons.damage.height + 15 * this.scaleFactor
         );
         
         // Draw fire rate upgrade button
@@ -1234,7 +1286,7 @@ class Game {
         this.ctx.fillText(
             `${this.upgradeButtons.fireRate.cost} Scraps`,
             this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
-            this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height + 15
+            this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height + 15 * this.scaleFactor
         );
         
         // Draw range upgrade button
@@ -1256,7 +1308,7 @@ class Game {
         this.ctx.fillText(
             `${this.upgradeButtons.range.cost} Scraps`,
             this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
-            this.upgradeButtons.range.y + this.upgradeButtons.range.height + 15
+            this.upgradeButtons.range.y + this.upgradeButtons.range.height + 15 * this.scaleFactor
         );
     }
 
@@ -1265,30 +1317,16 @@ class Game {
         this.ctx.font = 'bold 20px Arial';
         this.ctx.fillStyle = '#FFF';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20, this.uiPanel.y + 30);
-        
-        // Store current mouse position for hover effects
-        let currentMouseX = -1;
-        let currentMouseY = -1;
-        try {
-            const rect = this.canvas.getBoundingClientRect();
-            const event = window.event; // Get current mouse event
-            if (event && event.clientX) {
-                currentMouseX = event.clientX - rect.left;
-                currentMouseY = event.clientY - rect.top;
-            }
-        } catch (e) {
-            // Mouse position not available
-        }
+        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
         
         // Draw tower selection buttons with sprite images
         for (let i = 0; i < this.towerTypes.length; i++) {
             const tower = this.towerTypes[i];
             const buttonRect = {
-                x: this.uiPanel.x + 20,
-                y: this.uiPanel.y + 50 + i * 100,
-                width: this.uiPanel.width - 40,
-                height: 80
+                x: this.uiPanel.x + 20 * this.scaleFactor,
+                y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                height: 80 * this.scaleFactor
             };
             
             // Draw button background
@@ -1300,21 +1338,21 @@ class Game {
                 let img;
                 if (tower.name === "Wall") {
                     img = this.assets.getImage('wall');
-                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 30, 20, 20);
+                    this.ctx.drawImage(img, buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
                 } else if (tower.name === "Scrapper") {
                     img = this.assets.getImage('scrapper');
-                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+                    this.ctx.drawImage(img, buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
                 } else {
                     img = this.assets.getImage('tower');
-                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+                    this.ctx.drawImage(img, buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
                 }
             } else {
                 // Fallback to colored rectangles if images not loaded
-                this.ctx.fillStyle = tower.color;
+            this.ctx.fillStyle = tower.color;
                 if (tower.name === "Wall") {
-                    this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 30, 20, 20);
+                    this.ctx.fillRect(buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
                 } else {
-                    this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+            this.ctx.fillRect(buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
                 }
             }
             
@@ -1322,139 +1360,112 @@ class Game {
             this.ctx.fillStyle = '#FFFFFF';
             this.ctx.font = 'bold 16px Arial';
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(tower.name, buttonRect.x + 80, buttonRect.y + 30);
+            this.ctx.fillText(tower.name, buttonRect.x + 80 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor);
             
             // Draw cost
             this.ctx.font = '16px Arial';
-            this.ctx.fillText(`${tower.cost} Scraps`, buttonRect.x + 80, buttonRect.y + 55);
+            this.ctx.fillText(`${tower.cost} Scraps`, buttonRect.x + 80 * this.scaleFactor, buttonRect.y + 55 * this.scaleFactor);
             
-            // Draw stats or description
-            this.ctx.font = '12px Arial';
-            if (tower.name === "Wall") {
-                this.ctx.fillText(tower.description, buttonRect.x + 15, buttonRect.y + 75);
-            } else if (tower.name === "Scrapper") {
-                this.ctx.fillText(`+${tower.scrapRate}/5s during waves`, buttonRect.x + 15, buttonRect.y + 75);
-            } else {
-                this.ctx.fillText(`DMG: ${tower.damage} | RATE: ${tower.fireRate} | RANGE: ${tower.range}`, 
-                    buttonRect.x + 15, buttonRect.y + 75);
+            // Draw hover tooltip if this tower is being hovered over
+            if (this.hoveredTowerType === i) {
+                this.drawTowerTooltip(tower, buttonRect);
             }
         }
         
-        // Only draw upgrade info if a tower is selected and it's not a wall
+        // Draw tower upgrade info if a tower is selected
         if (this.selectedTower && !this.scrapMode) {
             if (this.selectedTower.isWall) {
                 // For walls, just show a message
                 this.ctx.font = 'bold 18px Arial';
                 this.ctx.fillStyle = '#FFF';
                 this.ctx.textAlign = 'left';
-                this.ctx.fillText('WALL', this.uiPanel.x + 20, this.uiPanel.y + 350);
+                this.ctx.fillText('WALL', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 350 * this.scaleFactor);
                 
                 this.ctx.font = '14px Arial';
-                this.ctx.fillText("This just looks like an ordinary wall", this.uiPanel.x + 20, this.uiPanel.y + 380);
+                this.ctx.fillText("This just looks like an ordinary wall", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 380 * this.scaleFactor);
             } else if (this.selectedTower.isScrapper) {
                 // For scrapper, show doomer message
                 this.ctx.font = 'bold 18px Arial';
                 this.ctx.fillStyle = '#FFF';
                 this.ctx.textAlign = 'left';
-                this.ctx.fillText('SCRAPPER', this.uiPanel.x + 20, this.uiPanel.y + 350);
+                this.ctx.fillText('SCRAPPER', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 350 * this.scaleFactor);
                 
                 this.ctx.font = '14px Arial';
                 this.ctx.fillStyle = '#888';
-                this.ctx.fillText("In this desolate wasteland, even the scraps", this.uiPanel.x + 20, this.uiPanel.y + 380);
-                this.ctx.fillText("of our past civilization hold value.", this.uiPanel.x + 20, this.uiPanel.y + 400);
-                this.ctx.fillText("This machine tirelessly processes the debris", this.uiPanel.x + 20, this.uiPanel.y + 420);
-                this.ctx.fillText("of our fallen world, turning waste into", this.uiPanel.x + 20, this.uiPanel.y + 440);
-                this.ctx.fillText("precious resources for our survival.", this.uiPanel.x + 20, this.uiPanel.y + 460);
+                this.ctx.fillText("In this desolate wasteland, even the scraps", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 380 * this.scaleFactor);
+                this.ctx.fillText("of our past civilization hold value.", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 400 * this.scaleFactor);
+                this.ctx.fillText("This machine tirelessly processes the debris", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 420 * this.scaleFactor);
+                this.ctx.fillText("of our fallen world, turning waste into", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 440 * this.scaleFactor);
+                this.ctx.fillText("precious resources for our survival.", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 460 * this.scaleFactor);
             } else {
                 // Normal tower upgrade UI
-                // Title
-                this.ctx.font = 'bold 18px Arial';
-                this.ctx.fillStyle = '#FFF';
-                this.ctx.textAlign = 'left';
-                this.ctx.fillText('UPGRADES', this.uiPanel.x + 20, this.uiPanel.y + 350);
-                
-                // Stats
-                this.ctx.font = '14px Arial';
-                this.ctx.fillText(`DMG: ${this.selectedTower.damage}`, this.uiPanel.x + 20, this.uiPanel.y + 380);
-                this.ctx.fillText(`RATE: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 120, this.uiPanel.y + 380);
-                this.ctx.fillText(`RANGE: ${this.selectedTower.range}`, this.uiPanel.x + 220, this.uiPanel.y + 380);
-                
-                // Buttons
-                const buttonY = this.uiPanel.y + 400;
-                const buttonHeight = 30;
-                
-                // Reposition upgrade buttons
-                this.upgradeButtons.damage.y = buttonY;
-                this.upgradeButtons.fireRate.y = buttonY;
-                this.upgradeButtons.range.y = buttonY;
-                
-                // Buttons in a row with better spacing
-                this.upgradeButtons.damage.x = this.uiPanel.x + 20;
-                this.upgradeButtons.fireRate.x = this.uiPanel.x + 110;
-                this.upgradeButtons.range.x = this.uiPanel.x + 200;
-                
-                // Draw damage upgrade button
-                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
-                this.ctx.fillRect(
-                    this.upgradeButtons.damage.x,
-                    this.upgradeButtons.damage.y,
-                    this.upgradeButtons.damage.width,
-                    buttonHeight
-                );
-                
-                // Draw fire rate upgrade button
-                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
-                this.ctx.fillRect(
-                    this.upgradeButtons.fireRate.x,
-                    this.upgradeButtons.fireRate.y,
-                    this.upgradeButtons.fireRate.width,
-                    buttonHeight
-                );
-                
-                // Draw range upgrade button
-                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
-                this.ctx.fillRect(
-                    this.upgradeButtons.range.x,
-                    this.upgradeButtons.range.y,
-                    this.upgradeButtons.range.width,
-                    buttonHeight
-                );
-                
-                // Draw button texts
-                this.ctx.fillStyle = '#FFFFFF';
-                this.ctx.font = '12px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                
-                // Button texts and costs
-                for (const type in this.upgradeButtons) {
-                    const button = this.upgradeButtons[type];
-                    this.ctx.fillText(
-                        button.text,
-                        button.x + button.width / 2,
-                        button.y + buttonHeight / 2
-                    );
-                    
-                    this.ctx.fillText(
-                        `${button.cost} Scraps`,
-                        button.x + button.width / 2,
-                        button.y + buttonHeight + 10
-                    );
-                }
+                this.drawTowerUpgradeInfo();
             }
+        }
+    }
+    
+    // Draw tooltip for tower when hovering over it in the crafting menu
+    drawTowerTooltip(tower, buttonRect) {
+        // Tooltip background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        this.ctx.fillRect(buttonRect.x, buttonRect.y - 100 * this.scaleFactor, buttonRect.width, 90 * this.scaleFactor);
+        
+        // Tooltip border
+        this.ctx.strokeStyle = '#666';
+        this.ctx.lineWidth = 1 * this.scaleFactor;
+        this.ctx.strokeRect(buttonRect.x, buttonRect.y - 100 * this.scaleFactor, buttonRect.width, 90 * this.scaleFactor);
+        
+        // Tooltip title
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.font = 'bold 14px Arial';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(tower.name, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 80 * this.scaleFactor);
+        
+        // Tooltip description
+        this.ctx.font = '12px Arial';
+        this.ctx.fillStyle = '#CCC';
+        
+        if (tower.name === "Sentry") {
+            this.ctx.fillText("A defensive turret that automatically", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("targets and attacks nearby creeps.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText(`Damage: ${tower.damage} | Range: ${tower.range}`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+            this.ctx.fillText(`Fire Rate: ${tower.fireRate}/s`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
+        } else if (tower.name === "Wall") {
+            this.ctx.fillText("A simple barrier that blocks creep", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("movement and forces them to take", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText("alternative paths.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+        } else if (tower.name === "Scrapper") {
+            this.ctx.fillText("A resource processing machine that", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("automatically generates scraps during", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText("active waves.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+            this.ctx.fillText(`+${tower.scrapRate} scrap every ${tower.scrapInterval/1000}s during waves`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
         }
     }
 
     drawStats() {
         // Draw stats at the top of the screen
-        this.ctx.font = '20px Arial';
+        this.ctx.font = `${20 * this.scaleFactor}px Arial`;
         this.ctx.textAlign = 'left';
         this.ctx.fillStyle = '#FFF';
         
-        // Lives, scraps, wave
-        this.ctx.fillText(`Lives: ${this.playerLives}`, 20, 35);
-        this.ctx.fillText(`Scraps: ${this.scraps}`, 160, 35);
-        this.ctx.fillText(`Wave: ${this.waveNumber}`, 300, 35);
+        // Scraps and wave
+        this.ctx.fillText(`Scraps: ${this.scraps}`, 20 * this.scaleFactor, 35 * this.scaleFactor);
+        this.ctx.fillText(`Wave: ${this.waveNumber}`, 160 * this.scaleFactor, 35 * this.scaleFactor);
+        
+        // Draw health bar over base
+        const healthBarWidth = 60 * this.scaleFactor;
+        const healthBarHeight = 8 * this.scaleFactor;
+        const healthBarX = this.homePoint.x - healthBarWidth / 2;
+        const healthBarY = this.homePoint.y - this.homePoint.radius - 15 * this.scaleFactor;
+        
+        // Health bar background
+        this.ctx.fillStyle = '#333';
+        this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+        
+        // Health bar fill
+        const healthPercentage = this.playerLives / 10;
+        this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : healthPercentage > 0.25 ? '#FFA500' : '#FF0000';
+        this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
         
         // Draw buttons
         // Next Wave button
@@ -1464,37 +1475,78 @@ class Game {
             this.ctx.fillStyle = '#666666';
         }
         
-        this.ctx.fillRect(
-            this.nextWaveButton.x,
-            this.nextWaveButton.y, 
-            this.nextWaveButton.width, 
-            this.nextWaveButton.height
-        );
-        
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '16px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            this.nextWaveButton.text,
-            this.nextWaveButton.x + this.nextWaveButton.width / 2,
-            this.nextWaveButton.y + this.nextWaveButton.height / 2
-        );
-        
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
+            this.ctx.drawImage(
+                buttonImg,
+                this.nextWaveButton.x,
+                this.nextWaveButton.y,
+                this.nextWaveButton.width,
+                this.nextWaveButton.height
+            );
+            this.ctx.globalAlpha = 1;
+        } else {
+            // Fallback to rectangle if image not loaded
+            this.ctx.fillRect(
+                this.nextWaveButton.x,
+                this.nextWaveButton.y, 
+                this.nextWaveButton.width, 
+                this.nextWaveButton.height
+            );
+        }
+            
+            // Draw button text
+        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
+            this.ctx.font = '16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(
+                this.nextWaveButton.text,
+                this.nextWaveButton.x + this.nextWaveButton.width / 2,
+                this.nextWaveButton.y + this.nextWaveButton.height / 2
+            );
+            
         // Scrap Mode button
         this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
-        this.ctx.fillRect(
-            this.scrapModeButton.x,
-            this.scrapModeButton.y, 
-            this.scrapModeButton.width, 
-            this.scrapModeButton.height
-        );
         
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.ctx.drawImage(
+                buttonImg,
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+            
+            // Draw highlight when active
+            if (this.scrapModeButton.active) {
+                this.ctx.strokeStyle = '#FF0000';
+                this.ctx.lineWidth = 3 * this.scaleFactor;
+                this.ctx.strokeRect(
+                    this.scrapModeButton.x,
+                    this.scrapModeButton.y, 
+                    this.scrapModeButton.width, 
+                    this.scrapModeButton.height
+                );
+            }
+        } else {
+            // Fallback to rectangle if image not loaded
+            this.ctx.fillRect(
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+        }
+            
+            // Draw button text
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(
             this.scrapModeButton.text,
             this.scrapModeButton.x + this.scrapModeButton.width / 2,
             this.scrapModeButton.y + this.scrapModeButton.height / 2
@@ -1533,7 +1585,7 @@ class Game {
             text: text,
             color: color,
             alpha: 1.0,
-            life: 60 // frames the text will live
+            life: 120 // Increased from 60 to 120 frames (twice as long)
         });
     }
 
@@ -1576,14 +1628,14 @@ class Game {
         
         // Latauksen edistymispalkki
         const progress = this.assets.loadedImages / this.assets.totalImages;
-        const barWidth = 300;
-        const barHeight = 20;
+        const barWidth = 300 * this.scaleFactor;
+        const barHeight = 20 * this.scaleFactor;
         
         this.ctx.strokeStyle = '#fff';
-        this.ctx.strokeRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 30, barWidth, barHeight);
+        this.ctx.strokeRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 30 * this.scaleFactor, barWidth, barHeight);
         
         this.ctx.fillStyle = '#4CAF50';
-        this.ctx.fillRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 30, barWidth * progress, barHeight);
+        this.ctx.fillRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 30 * this.scaleFactor, barWidth * progress, barHeight);
     }
 }
 
