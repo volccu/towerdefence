@@ -48,10 +48,8 @@ class Game {
         this.assets.loadImage('creep', 'assets/creep.png');
         this.assets.loadImage('tower', 'assets/tower.png');
         this.assets.loadImage('wall', 'assets/wall.png');
-        // Tässä voidaan myöhemmin ladata muut kuvat
-        // this.assets.loadImage('tower', 'assets/tower.png');
-        // this.assets.loadImage('wall', 'assets/wall.png');
-        // this.assets.loadImage('boss', 'assets/boss.png');
+        this.assets.loadImage('scrapper', 'assets/scrapper.png');
+        this.assets.loadImage('ground', 'assets/ground.png');
         
         // Canvas size - wider to accommodate UI panels
         this.canvas.width = 700;
@@ -92,11 +90,11 @@ class Game {
         
         // Game state
         this.playerLives = 10;
-        this.money = 500; // Starting money (gold)
+        this.scraps = 500; // Starting scraps
         this.waveReached = 0; // Track highest wave reached
         this.gameOver = false;
         this.debugMode = false;
-        this.sellMode = false;
+        this.scrapMode = false; // Renamed from sellMode
         this.selectedTower = null; // For tower upgrades
         this.showRangeWhenPlacing = true; // Show range when placing towers
         this.buyMode = false; // Track if player has clicked on tower purchase button
@@ -104,8 +102,8 @@ class Game {
         // Tower types and costs
         this.towerTypes = [
             {
-                name: "Perus Torni",
-                description: "Tehokas perustorni",
+                name: "Sentry",
+                description: "Tehokas puolustusjärjestelmä",
                 cost: 40,
                 damage: 20,
                 range: 150,
@@ -120,8 +118,21 @@ class Game {
                 damage: 0,
                 range: 0,
                 fireRate: 0,
-                color: "#8B4513", // Brown color for wall
+                color: "#8B4513",
                 strokeColor: "#5D2906"
+            },
+            {
+                name: "Scrapper",
+                description: "Kerää ja prosessoi romua automaattisesti",
+                cost: 100,
+                damage: 0,
+                range: 0,
+                fireRate: 0,
+                color: "#FFD700",
+                strokeColor: "#B8860B",
+                isScrapper: true,
+                scrapRate: 1,
+                scrapInterval: 5000 // 5 seconds
             }
         ];
         this.selectedTowerType = 0;
@@ -129,7 +140,7 @@ class Game {
         // Tower wireframe and selection
         this.hoverX = 0;
         this.hoverY = 0;
-        this.selectedTowers = []; // For bulk selling
+        this.selectedTowers = [];
         this.isDragging = false;
         this.dragStart = { x: 0, y: 0 };
         
@@ -178,12 +189,12 @@ class Game {
             text: "NEXT WAVE"
         };
         
-        this.sellModeButton = {
+        this.scrapModeButton = {
             x: this.statsPanel.x + 560,
             y: this.statsPanel.y + 20,
             width: 120,
             height: 40,
-            text: "SELL MODE",
+            text: "SCRAP",
             active: false
         };
         
@@ -261,17 +272,17 @@ class Game {
                 return;
             }
             
-            // Check if click hit Sell Mode button
-            if (this.isPointInRect(x, y, this.sellModeButton)) {
-                this.sellMode = !this.sellMode;
-                this.sellModeButton.active = this.sellMode;
-                this.selectedTower = null; // Deselect tower when entering sell mode
-                this.buyMode = false; // Exit buy mode when entering sell mode
+            // Check if click hit Scrap Mode button
+            if (this.isPointInRect(x, y, this.scrapModeButton)) {
+                this.scrapMode = !this.scrapMode;
+                this.scrapModeButton.active = this.scrapMode;
+                this.selectedTower = null; // Deselect tower when entering scrap mode
+                this.buyMode = false; // Exit buy mode when entering scrap mode
                 return;
             }
             
             // Check upgrade buttons when tower is selected and it's not a wall
-            if (this.selectedTower && !this.sellMode && !this.selectedTower.isWall) {
+            if (this.selectedTower && !this.scrapMode && !this.selectedTower.isWall && !this.selectedTower.isScrapper) {
                 if (this.isPointInRect(x, y, this.upgradeButtons.damage)) {
                     this.upgradeTowerDamage();
                     return;
@@ -298,8 +309,8 @@ class Game {
                 if (this.isPointInRect(x, y, buttonRect)) {
                     this.selectedTowerType = i;
                     this.buyMode = true;
-                    this.sellMode = false;
-                    this.sellModeButton.active = false;
+                    this.scrapMode = false;
+                    this.scrapModeButton.active = false;
                     return;
                 }
             }
@@ -312,9 +323,9 @@ class Game {
                 const gridX = Math.floor((x - this.gameArea.x) / this.grid.cellSize);
                 const gridY = Math.floor((y - this.gameArea.y) / this.grid.cellSize);
                 
-                if (this.sellMode) {
-                    // Try to sell a tower
-                    this.sellTower(gridX, gridY);
+                if (this.scrapMode) {
+                    // Try to scrap a tower
+                    this.scrapTower(gridX, gridY);
                 } else {
                     // Check if clicked on existing tower
                     const clickedTower = this.getTowerAt(gridX, gridY);
@@ -329,8 +340,8 @@ class Game {
                         this.placeTower(gridX, gridY);
                         
                         // Check if tower was successfully placed
-                        if (this.money < this.towerTypes[this.selectedTowerType].cost) {
-                            this.buyMode = false; // Exit buy mode if no more money
+                        if (this.scraps < this.towerTypes[this.selectedTowerType].cost) {
+                            this.buyMode = false; // Exit buy mode if no more scraps
                         }
                     }
                     this.selectedTower = null; // Deselect when placing new tower
@@ -352,6 +363,14 @@ class Game {
                 mouseY >= this.gameArea.y && mouseY <= this.gameArea.y + this.gameArea.height) {
                 this.hoverX = Math.floor((mouseX - this.gameArea.x) / this.grid.cellSize);
                 this.hoverY = Math.floor((mouseY - this.gameArea.y) / this.grid.cellSize);
+                
+                // Try to place tower if mouse is pressed and in buy mode
+                if (event.buttons === 1 && this.buyMode && !this.scrapMode) {
+                    const towerType = this.towerTypes[this.selectedTowerType];
+                    if (this.scraps >= towerType.cost) {
+                        this.placeTower(this.hoverX, this.hoverY);
+                    }
+                }
             }
             
             // Check mouse over buttons and update cursor
@@ -360,7 +379,7 @@ class Game {
             // Check stats panel buttons
             const buttons = [
                 this.nextWaveButton, 
-                this.sellModeButton
+                this.scrapModeButton
             ];
             
             if (this.gameOver) {
@@ -368,7 +387,7 @@ class Game {
             }
             
             // Check tower upgrade buttons
-            if (this.selectedTower && !this.sellMode && !this.selectedTower.isWall) {
+            if (this.selectedTower && !this.scrapMode && !this.selectedTower.isWall && !this.selectedTower.isScrapper) {
                 buttons.push(this.upgradeButtons.damage, this.upgradeButtons.fireRate, this.upgradeButtons.range);
             }
             
@@ -404,14 +423,14 @@ class Game {
             }
             
             // Update dragging for bulk tower selection
-            if (this.sellMode && this.isDragging) {
+            if (this.scrapMode && this.isDragging) {
                 this.updateDragSelection(mouseX, mouseY);
             }
         });
         
         // Mouse down for drag selection
         this.canvas.addEventListener('mousedown', (event) => {
-            if (this.gameOver || !this.sellMode) return;
+            if (this.gameOver || !this.scrapMode) return;
             
             const rect = this.canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
@@ -431,10 +450,10 @@ class Game {
             if (this.isDragging) {
                 this.isDragging = false;
                 
-                // Sell all selected towers if in sell mode
-                if (this.sellMode && this.selectedTowers.length > 0) {
+                // Scrap all selected towers if in scrap mode
+                if (this.scrapMode && this.selectedTowers.length > 0) {
                     for (const tower of this.selectedTowers) {
-                        this.sellTowerObject(tower);
+                        this.scrapTowerObject(tower);
                     }
                     this.selectedTowers = [];
                 }
@@ -468,13 +487,13 @@ class Game {
         // Reset game state
         this.gameOver = false;
         this.playerLives = 10;
-        this.money = 500; // 500 gold
+        this.scraps = 500; // 500 scraps
         this.towers = [];
         this.creeps = [];
         this.waveNumber = 0;
         this.creepsToSpawn = 0;
         this.waveActive = false;
-        this.sellMode = false;
+        this.scrapMode = false;
         this.selectedTower = null;
         this.selectedTowerType = 0;
         
@@ -509,8 +528,8 @@ class Game {
         
         const upgradeCost = this.upgradeButtons.damage.cost;
         
-        if (this.money >= upgradeCost) {
-            this.money -= upgradeCost;
+        if (this.scraps >= upgradeCost) {
+            this.scraps -= upgradeCost;
             // Increase damage by 30%
             this.selectedTower.damage = Math.floor(this.selectedTower.damage * 1.3);
             // Increase future upgrade cost
@@ -523,8 +542,8 @@ class Game {
         
         const upgradeCost = this.upgradeButtons.fireRate.cost;
         
-        if (this.money >= upgradeCost) {
-            this.money -= upgradeCost;
+        if (this.scraps >= upgradeCost) {
+            this.scraps -= upgradeCost;
             // Increase fire rate by 20%
             this.selectedTower.fireRate *= 1.2;
             // Increase future upgrade cost
@@ -537,8 +556,8 @@ class Game {
         
         const upgradeCost = this.upgradeButtons.range.cost;
         
-        if (this.money >= upgradeCost) {
-            this.money -= upgradeCost;
+        if (this.scraps >= upgradeCost) {
+            this.scraps -= upgradeCost;
             // Increase range by 25%
             this.selectedTower.range = Math.floor(this.selectedTower.range * 1.25);
             // Increase future upgrade cost
@@ -586,9 +605,9 @@ class Game {
     placeTower(gridX, gridY) {
         const towerType = this.towerTypes[this.selectedTowerType];
         
-        // Check if player has enough money
-        if (this.money < towerType.cost) {
-            this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough gold!", "#FF0000");
+        // Check if player has enough scraps
+        if (this.scraps < towerType.cost) {
+            this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000");
             return false;
         }
 
@@ -649,7 +668,15 @@ class Game {
 
         // Add tower and deduct cost
         this.towers.push(tower);
-        this.money -= towerType.cost;
+        this.scraps -= towerType.cost;
+        
+        // Show floating text for cost
+        this.addFloatingText(
+            tower.x + tower.width / 2 + this.gameArea.x,
+            tower.y + tower.height / 2,
+            `-${towerType.cost}`,
+            "#FF0000"
+        );
         
         return true;
     }
@@ -678,9 +705,9 @@ class Game {
                homeDist < this.homePoint.radius + safeDistance;
     }
     
-    sellTower(gridX, gridY) {
+    scrapTower(gridX, gridY) {
         // Find tower at selected location
-        let towerToSell = null;
+        let towerToScrap = null;
         
         for (let i = 0; i < this.towers.length; i++) {
             const tower = this.towers[i];
@@ -688,31 +715,31 @@ class Game {
             if (tower.isWall) {
                 // Wall is just 1x1
                 if (tower.gridX === gridX && tower.gridY === gridY) {
-                    towerToSell = tower;
+                    towerToScrap = tower;
                     break;
                 }
             } else {
                 // Check all cells of tower (2x2)
                 if (gridX >= tower.gridX && gridX < tower.gridX + 2 &&
                     gridY >= tower.gridY && gridY < tower.gridY + 2) {
-                    towerToSell = tower;
+                    towerToScrap = tower;
                     break;
                 }
             }
         }
         
-        if (towerToSell) {
-            this.sellTowerObject(towerToSell);
+        if (towerToScrap) {
+            this.scrapTowerObject(towerToScrap);
             return true;
         }
         
         return false;
     }
     
-    sellTowerObject(tower) {
-        // Give player money back (half of cost)
+    scrapTowerObject(tower) {
+        // Give player scraps back (half of cost)
         const refund = Math.floor(tower.cost / 2);
-        this.money += refund;
+        this.scraps += refund;
         
         // Show floating text with refund amount
         const x = tower.x + tower.width / 2 + this.gameArea.x;
@@ -812,19 +839,20 @@ class Game {
         let isMiniBoss = false;
         
         if (this.waveNumber % 10 === 0) {
-            // Boss every 10th wave
+            // Boss every 10th wave - nerfed
             isBoss = true;
-            health *= 5;  // 5x health
-            speed *= 0.4; // 40% speed
-            radius = 16;  // 2x size
-            color = '#FF0000'; // Red color
+            health *= 3;  // Reduced from 5x to 3x
+            speed *= 0.5; // Slightly faster than before
+            radius = 16;
+            color = '#FF0000';
+            this.creepsToSpawn = Math.min(5, this.creepsToSpawn); // Max 5 bosses
         } else if (this.waveNumber % 5 === 0) {
-            // Mini-boss every 5th wave
+            // Mini-boss every 5th wave - nerfed
             isMiniBoss = true;
-            health *= 2.5; // 2.5x health
-            speed *= 0.6; // 60% speed
-            radius = 12;  // 1.5x size
-            color = '#FF8800'; // Orange color
+            health *= 2;  // Reduced from 2.5x to 2x
+            speed *= 0.7; // Faster than before
+            radius = 12;
+            color = '#FF8800';
         }
         
         // Create new creep with appropriate parameters
@@ -838,6 +866,19 @@ class Game {
         // Update game objects
         for (const tower of this.towers) {
             tower.update(currentTime);
+            
+            // Handle scrapper passive income only during active waves
+            if (tower.isScrapper && this.waveActive && currentTime - tower.lastScrapTime >= tower.scrapInterval) {
+                this.scraps += tower.scrapRate;
+                tower.lastScrapTime = currentTime;
+                // Show floating text for scrap income
+                this.addFloatingText(
+                    tower.x + tower.width / 2 + this.gameArea.x,
+                    tower.y + tower.height / 2,
+                    `+${tower.scrapRate}`,
+                    "#FFD700"
+                );
+            }
         }
         
         for (let i = this.creeps.length - 1; i >= 0; i--) {
@@ -856,10 +897,10 @@ class Game {
                     // Creep was attacking tower but died
                     // Tower damage already handled in creep.update()
                 } else {
-                    // Creep was killed - give money
-                    // Improved economy - more money for later waves
+                    // Creep was killed - give scraps
+                    // Improved economy - more scraps for later waves
                     const reward = 15 + Math.floor(this.waveNumber * 1.5);
-                    this.money += reward;
+                    this.scraps += reward;
                 }
                 this.creeps.splice(i, 1);
             }
@@ -868,9 +909,9 @@ class Game {
         // Check if wave is complete
         if (this.waveActive && this.creepsToSpawn <= 0 && this.creeps.length === 0) {
             this.waveActive = false;
-            // Bonus money at end of wave
+            // Bonus scraps at end of wave
             const waveBonus = 20 + this.waveNumber * 10;
-            this.money += waveBonus;
+            this.scraps += waveBonus;
         }
         
         // Check game over
@@ -923,6 +964,24 @@ class Game {
         this.ctx.fillStyle = '#111';
         this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
+        // Draw ground tiles
+        if (this.assets.isReady()) {
+            const groundImg = this.assets.getImage('ground');
+            const tileSize = this.grid.cellSize * 2; // 2x2 grid cells
+            
+            for (let y = 0; y < this.gameArea.height; y += tileSize) {
+                for (let x = 0; x < this.gameArea.width; x += tileSize) {
+                    this.ctx.drawImage(
+                        groundImg,
+                        this.gameArea.x + x,
+                        this.gameArea.y + y,
+                        tileSize,
+                        tileSize
+                    );
+                }
+            }
+        }
+        
         // Draw UI panel background
         this.ctx.fillStyle = '#222';
         this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
@@ -951,9 +1010,9 @@ class Game {
         this.ctx.rect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         this.ctx.clip();
 
-        // Draw tower wireframe at hover position only if in buy mode and has enough money
+        // Draw tower wireframe at hover position only if in buy mode and has enough scraps
         const towerType = this.towerTypes[this.selectedTowerType];
-        if (!this.gameOver && !this.sellMode && this.buyMode && this.money >= towerType.cost) {
+        if (!this.gameOver && !this.scrapMode && this.buyMode && this.scraps >= towerType.cost) {
             // Get grid position
             const x = this.hoverX * this.grid.cellSize + this.gameArea.x;
             const y = this.hoverY * this.grid.cellSize + this.gameArea.y;
@@ -1025,7 +1084,7 @@ class Game {
         }
         
         // Draw tower upgrade info if a tower is selected
-        if (this.selectedTower && !this.sellMode) {
+        if (this.selectedTower && !this.scrapMode) {
             this.drawTowerUpgradeInfo();
         }
         
@@ -1034,8 +1093,8 @@ class Game {
             creep.draw(this.ctx);
         }
         
-        // Draw selection rectangle when dragging in sell mode
-        if (this.isDragging && this.sellMode) {
+        // Draw selection rectangle when dragging in scrap mode
+        if (this.isDragging && this.scrapMode) {
             const rect = {
                 x: Math.min(this.dragStart.x, this.hoverX * this.grid.cellSize + this.gameArea.x),
                 y: Math.min(this.dragStart.y, this.hoverY * this.grid.cellSize + this.gameArea.y),
@@ -1051,7 +1110,7 @@ class Game {
         }
         
         // Draw selected towers highlight
-        if (this.sellMode) {
+        if (this.scrapMode) {
             for (const tower of this.selectedTowers) {
                 this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(
@@ -1133,7 +1192,7 @@ class Game {
         this.ctx.fillText(`Rate: ${this.selectedTower.fireRate.toFixed(2)}`, this.uiPanel.x + 160, 370);
         
         // Draw damage upgrade button
-        this.ctx.fillStyle = this.money >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillStyle = this.scraps >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
         this.ctx.fillRect(
             this.upgradeButtons.damage.x,
             this.upgradeButtons.damage.y,
@@ -1151,13 +1210,13 @@ class Game {
             this.upgradeButtons.damage.y + this.upgradeButtons.damage.height / 2
         );
         this.ctx.fillText(
-            `${this.upgradeButtons.damage.cost} Gold`,
+            `${this.upgradeButtons.damage.cost} Scraps`,
             this.upgradeButtons.damage.x + this.upgradeButtons.damage.width / 2,
             this.upgradeButtons.damage.y + this.upgradeButtons.damage.height + 15
         );
         
         // Draw fire rate upgrade button
-        this.ctx.fillStyle = this.money >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillStyle = this.scraps >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
         this.ctx.fillRect(
             this.upgradeButtons.fireRate.x,
             this.upgradeButtons.fireRate.y,
@@ -1173,13 +1232,13 @@ class Game {
             this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height / 2
         );
         this.ctx.fillText(
-            `${this.upgradeButtons.fireRate.cost} Gold`,
+            `${this.upgradeButtons.fireRate.cost} Scraps`,
             this.upgradeButtons.fireRate.x + this.upgradeButtons.fireRate.width / 2,
             this.upgradeButtons.fireRate.y + this.upgradeButtons.fireRate.height + 15
         );
         
         // Draw range upgrade button
-        this.ctx.fillStyle = this.money >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
+        this.ctx.fillStyle = this.scraps >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
         this.ctx.fillRect(
             this.upgradeButtons.range.x,
             this.upgradeButtons.range.y,
@@ -1195,7 +1254,7 @@ class Game {
             this.upgradeButtons.range.y + this.upgradeButtons.range.height / 2
         );
         this.ctx.fillText(
-            `${this.upgradeButtons.range.cost} Gold`,
+            `${this.upgradeButtons.range.cost} Scraps`,
             this.upgradeButtons.range.x + this.upgradeButtons.range.width / 2,
             this.upgradeButtons.range.y + this.upgradeButtons.range.height + 15
         );
@@ -1206,7 +1265,7 @@ class Game {
         this.ctx.font = 'bold 20px Arial';
         this.ctx.fillStyle = '#FFF';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText('TOWERS', this.uiPanel.x + 20, this.uiPanel.y + 30);
+        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20, this.uiPanel.y + 30);
         
         // Store current mouse position for hover effects
         let currentMouseX = -1;
@@ -1222,36 +1281,41 @@ class Game {
             // Mouse position not available
         }
         
-        // Draw tower selection buttons - improved layout
+        // Draw tower selection buttons with sprite images
         for (let i = 0; i < this.towerTypes.length; i++) {
             const tower = this.towerTypes[i];
-            // Use whole width for tower button
             const buttonRect = {
                 x: this.uiPanel.x + 20,
-                y: this.uiPanel.y + 50 + i * 100, // More space between towers
+                y: this.uiPanel.y + 50 + i * 100,
                 width: this.uiPanel.width - 40,
                 height: 80
             };
             
-            // Draw button background - make entire rect clickable
+            // Draw button background
             this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
             this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
             
-            // Add simple hover indication for the selected tower type
-            if (this.selectedTowerType === i) {
-                this.ctx.strokeStyle = '#FFFFFF';
-                this.ctx.lineWidth = 2;
-                this.ctx.strokeRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
-            }
-            
-            // Draw tower preview - with appropriate size
-            this.ctx.fillStyle = tower.color;
-            
-            // Draw appropriate preview (wall is 1x1, tower is 2x2)
-            if (tower.name === "Wall") {
-                this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 30, 20, 20); // Centered 1x1
+            // Draw tower sprite
+            if (this.assets.isReady()) {
+                let img;
+                if (tower.name === "Wall") {
+                    img = this.assets.getImage('wall');
+                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 30, 20, 20);
+                } else if (tower.name === "Scrapper") {
+                    img = this.assets.getImage('scrapper');
+                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+                } else {
+                    img = this.assets.getImage('tower');
+                    this.ctx.drawImage(img, buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+                }
             } else {
-                this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 15, 50, 50); // 2x2
+                // Fallback to colored rectangles if images not loaded
+                this.ctx.fillStyle = tower.color;
+                if (tower.name === "Wall") {
+                    this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 30, 20, 20);
+                } else {
+                    this.ctx.fillRect(buttonRect.x + 15, buttonRect.y + 15, 50, 50);
+                }
             }
             
             // Draw tower name and cost
@@ -1262,12 +1326,14 @@ class Game {
             
             // Draw cost
             this.ctx.font = '16px Arial';
-            this.ctx.fillText(`${tower.cost} Gold`, buttonRect.x + 80, buttonRect.y + 55);
+            this.ctx.fillText(`${tower.cost} Scraps`, buttonRect.x + 80, buttonRect.y + 55);
             
             // Draw stats or description
             this.ctx.font = '12px Arial';
             if (tower.name === "Wall") {
                 this.ctx.fillText(tower.description, buttonRect.x + 15, buttonRect.y + 75);
+            } else if (tower.name === "Scrapper") {
+                this.ctx.fillText(`+${tower.scrapRate}/5s during waves`, buttonRect.x + 15, buttonRect.y + 75);
             } else {
                 this.ctx.fillText(`DMG: ${tower.damage} | RATE: ${tower.fireRate} | RANGE: ${tower.range}`, 
                     buttonRect.x + 15, buttonRect.y + 75);
@@ -1275,9 +1341,9 @@ class Game {
         }
         
         // Only draw upgrade info if a tower is selected and it's not a wall
-        if (this.selectedTower && !this.sellMode) {
+        if (this.selectedTower && !this.scrapMode) {
             if (this.selectedTower.isWall) {
-                // For walls, just show a message instead of upgrades
+                // For walls, just show a message
                 this.ctx.font = 'bold 18px Arial';
                 this.ctx.fillStyle = '#FFF';
                 this.ctx.textAlign = 'left';
@@ -1285,6 +1351,20 @@ class Game {
                 
                 this.ctx.font = '14px Arial';
                 this.ctx.fillText("This just looks like an ordinary wall", this.uiPanel.x + 20, this.uiPanel.y + 380);
+            } else if (this.selectedTower.isScrapper) {
+                // For scrapper, show doomer message
+                this.ctx.font = 'bold 18px Arial';
+                this.ctx.fillStyle = '#FFF';
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText('SCRAPPER', this.uiPanel.x + 20, this.uiPanel.y + 350);
+                
+                this.ctx.font = '14px Arial';
+                this.ctx.fillStyle = '#888';
+                this.ctx.fillText("In this desolate wasteland, even the scraps", this.uiPanel.x + 20, this.uiPanel.y + 380);
+                this.ctx.fillText("of our past civilization hold value.", this.uiPanel.x + 20, this.uiPanel.y + 400);
+                this.ctx.fillText("This machine tirelessly processes the debris", this.uiPanel.x + 20, this.uiPanel.y + 420);
+                this.ctx.fillText("of our fallen world, turning waste into", this.uiPanel.x + 20, this.uiPanel.y + 440);
+                this.ctx.fillText("precious resources for our survival.", this.uiPanel.x + 20, this.uiPanel.y + 460);
             } else {
                 // Normal tower upgrade UI
                 // Title
@@ -1314,7 +1394,7 @@ class Game {
                 this.upgradeButtons.range.x = this.uiPanel.x + 200;
                 
                 // Draw damage upgrade button
-                this.ctx.fillStyle = this.money >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
+                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.damage.cost ? '#4CAF50' : '#666666';
                 this.ctx.fillRect(
                     this.upgradeButtons.damage.x,
                     this.upgradeButtons.damage.y,
@@ -1323,7 +1403,7 @@ class Game {
                 );
                 
                 // Draw fire rate upgrade button
-                this.ctx.fillStyle = this.money >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
+                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.fireRate.cost ? '#4CAF50' : '#666666';
                 this.ctx.fillRect(
                     this.upgradeButtons.fireRate.x,
                     this.upgradeButtons.fireRate.y,
@@ -1332,7 +1412,7 @@ class Game {
                 );
                 
                 // Draw range upgrade button
-                this.ctx.fillStyle = this.money >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
+                this.ctx.fillStyle = this.scraps >= this.upgradeButtons.range.cost ? '#4CAF50' : '#666666';
                 this.ctx.fillRect(
                     this.upgradeButtons.range.x,
                     this.upgradeButtons.range.y,
@@ -1356,7 +1436,7 @@ class Game {
                     );
                     
                     this.ctx.fillText(
-                        `${button.cost}g`,
+                        `${button.cost} Scraps`,
                         button.x + button.width / 2,
                         button.y + buttonHeight + 10
                     );
@@ -1371,17 +1451,17 @@ class Game {
         this.ctx.textAlign = 'left';
         this.ctx.fillStyle = '#FFF';
         
-        // Lives, gold, wave
+        // Lives, scraps, wave
         this.ctx.fillText(`Lives: ${this.playerLives}`, 20, 35);
-        this.ctx.fillText(`Gold: ${this.money}`, 160, 35);
+        this.ctx.fillText(`Scraps: ${this.scraps}`, 160, 35);
         this.ctx.fillText(`Wave: ${this.waveNumber}`, 300, 35);
         
         // Draw buttons
         // Next Wave button
         if (!this.waveActive) {
-            this.ctx.fillStyle = '#4CAF50'; // Green
+            this.ctx.fillStyle = '#4CAF50';
         } else {
-            this.ctx.fillStyle = '#666666'; // Gray when wave is active
+            this.ctx.fillStyle = '#666666';
         }
         
         this.ctx.fillRect(
@@ -1402,22 +1482,22 @@ class Game {
             this.nextWaveButton.y + this.nextWaveButton.height / 2
         );
         
-        // Sell Mode button
-        this.ctx.fillStyle = this.sellModeButton.active ? '#FF4444' : '#666666';
+        // Scrap Mode button
+        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
         this.ctx.fillRect(
-            this.sellModeButton.x,
-            this.sellModeButton.y, 
-            this.sellModeButton.width, 
-            this.sellModeButton.height
+            this.scrapModeButton.x,
+            this.scrapModeButton.y, 
+            this.scrapModeButton.width, 
+            this.scrapModeButton.height
         );
         
         // Draw button text
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(
-            this.sellModeButton.text,
-            this.sellModeButton.x + this.sellModeButton.width / 2,
-            this.sellModeButton.y + this.sellModeButton.height / 2
+            this.scrapModeButton.text,
+            this.scrapModeButton.x + this.scrapModeButton.width / 2,
+            this.scrapModeButton.y + this.scrapModeButton.height / 2
         );
     }
 

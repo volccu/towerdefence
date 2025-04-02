@@ -86,6 +86,14 @@ class Tower {
         this.strokeColor = towerType.strokeColor;
         this.cost = towerType.cost;
         this.isWall = false; // Default value
+        this.isScrapper = towerType.isScrapper || false;
+        
+        // Scrapper specific properties
+        if (this.isScrapper) {
+            this.scrapRate = towerType.scrapRate;
+            this.scrapInterval = towerType.scrapInterval;
+            this.lastScrapTime = 0;
+        }
         
         this.lastFireTime = 0;
         this.projectiles = [];
@@ -103,8 +111,8 @@ class Tower {
             }
         }
 
-        // Check if we can fire again
-        if (currentTime - this.lastFireTime >= 1000 / this.fireRate) {
+        // Check if we can fire again (only for non-scrapper towers)
+        if (!this.isScrapper && currentTime - this.lastFireTime >= 1000 / this.fireRate) {
             this.findTargetAndShoot(currentTime);
         }
     }
@@ -156,10 +164,17 @@ class Tower {
         // Calculate position with offset
         const drawX = this.x + this.game.gameArea.x;
         
-        // Käytä tower-kuvaa
+        // Käytä oikeaa kuvaa tornin tyypin mukaan
         if (this.game.assets && this.game.assets.isReady()) {
-            const towerImg = this.game.assets.getImage('tower');
-            ctx.drawImage(towerImg, drawX, this.y, this.width, this.height);
+            let img;
+            if (this.isScrapper) {
+                img = this.game.assets.getImage('scrapper');
+            } else if (this.isWall) {
+                img = this.game.assets.getImage('wall');
+            } else {
+                img = this.game.assets.getImage('tower');
+            }
+            ctx.drawImage(img, drawX, this.y, this.width, this.height);
         } else {
             // Fallback jos kuva ei ole vielä latautunut
             ctx.fillStyle = this.color;
