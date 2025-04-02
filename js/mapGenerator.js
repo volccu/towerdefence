@@ -20,6 +20,16 @@ class MapGenerator {
         this.obstacleDensity = options.obstacleDensity || 0.3;
         this.maxAttempts = options.maxAttempts || 10;
         
+        // Cellular Automata -asetukset
+        this.CA_ITERATIONS = 5;
+        this.CA_BIRTH_LIMIT = 4;
+        this.CA_DEATH_LIMIT = 3;
+        this.MIN_OBSTACLE_SIZE = 2;
+        
+        // Esteiden generointiasetukset
+        this.CORNER_WEIGHT = 0.7;
+        this.ORGANIC_WEIGHT = 0.6;
+        
         // Kartan ruututyypit
         this.TILE_TYPES = {
             FLOOR: 0,    // Käveltyvä alusta, tornit rakennettavissa
@@ -55,17 +65,17 @@ class MapGenerator {
      * @returns {Array} 2D-taulukko, joka edustaa kartan ruutuja
      */
     generateMapAttempt() {
-        // Alusta kartta kaikki lattioina
         const map = this.initializeMap();
-        
-        // Merkitse aloitus- ja lopetuspisteet
         this.markStartAndEndPoints(map);
         
-        // Luo varmistettu polku aloituspisteestä lopetuspisteeseen
-        this.generateCorePath(map);
+        // Luo useita polkuja aloitus- ja lopetuspisteiden välille
+        this.generateMultiplePaths(map);
         
-        // Lisää esteitä
-        this.addObstacles(map);
+        // Lisää esteitä Cellular Automata -algoritmilla
+        this.addObstaclesWithCA(map);
+        
+        // Varmista, että polut ovat edelleen käytettävissä
+        this.ensurePathsAreValid(map);
         
         return map;
     }
@@ -128,32 +138,210 @@ class MapGenerator {
         }
     }
     
-    /**
-     * Luo varmistettu polku aloituspisteestä lopetuspisteeseen
-     * @param {Array} map - Kartta, jota muokataan
-     */
-    generateCorePath(map) {
-        // Valitse satunnainen aloituspiste
-        const startPoint = this.startPoints[Math.floor(Math.random() * this.startPoints.length)];
+    generateMultiplePaths(map) {
+        // Luo 2-3 polkua aloitus- ja lopetuspisteiden välille
+        const numPaths = 2 + Math.floor(Math.random() * 2);
         
-        // Valitse satunnainen lopetuspiste
-        const endPoint = this.endPoints[Math.floor(Math.random() * this.endPoints.length)];
+        for (let i = 0; i < numPaths; i++) {
+            const startPoint = this.startPoints[Math.floor(Math.random() * this.startPoints.length)];
+            const endPoint = this.endPoints[Math.floor(Math.random() * this.endPoints.length)];
+            
+            // Lisää satunnaista vaihtelua polkuun
+            const path = this.findPathWithVariation(map, startPoint, endPoint);
+            
+            if (path) {
+                this.markPath(map, path);
+            }
+        }
+    }
+    
+    findPathWithVariation(map, start, end) {
+        // Lisää satunnaisia pisteitä polun varrelle
+        const numVariationPoints = 2 + Math.floor(Math.random() * 3);
+        const variationPoints = [];
         
-        // Käytä A* algoritmia polun luomiseen
-        const path = this.findPath(map, startPoint, endPoint);
+        for (let i = 0; i < numVariationPoints; i++) {
+            const x = Math.floor(Math.random() * this.width);
+            const y = Math.floor(Math.random() * this.height);
+            variationPoints.push({x, y});
+        }
         
-        // Merkitse polku kartalle
-        if (path) {
-            for (const point of path) {
-                map[point.y][point.x] = this.TILE_TYPES.PATH;
-                
-                // Merkitse myös ympäröivät ruudut lattioina (2x2 alue)
-                for (let dy = -1; dy <= 1; dy++) {
-                    for (let dx = -1; dx <= 1; dx++) {
-                        const nx = point.x + dx;
-                        const ny = point.y + dy;
-                        if (this.isValidPosition(nx, ny) && map[ny][nx] !== this.TILE_TYPES.PATH) {
-                            map[ny][nx] = this.TILE_TYPES.FLOOR;
+        // Etsi polku vaiheittain läpi variaatiopisteiden
+        let currentPath = this.findPath(map, start, variationPoints[0]);
+        if (!currentPath) return null;
+        
+        for (let i = 0; i < variationPoints.length - 1; i++) {
+            const nextPath = this.findPath(map, variationPoints[i], variationPoints[i + 1]);
+            if (!nextPath) return null;
+            currentPath = currentPath.concat(nextPath.slice(1));
+        }
+        
+        const finalPath = this.findPath(map, variationPoints[variationPoints.length - 1], end);
+        if (!finalPath) return null;
+        
+        return currentPath.concat(finalPath.slice(1));
+    }
+    
+    markPath(map, path) {
+        for (const point of path) {
+            map[point.y][point.x] = this.TILE_TYPES.PATH;
+            
+            // Merkitse kapeampi polku (2x2 alue)
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const nx = point.x + dx;
+                    const ny = point.y + dy;
+                    if (this.isValidPosition(nx, ny) && map[ny][nx] !== this.TILE_TYPES.PATH) {
+                        map[ny][nx] = this.TILE_TYPES.FLOOR;
+                    }
+                }
+            }
+        }
+    }
+    
+    addObstaclesWithCA(map) {
+        // Alusta satunnaiset esteet, painottaen kulmia
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (map[y][x] === this.TILE_TYPES.FLOOR && !this.isNearSpecialTile(map, x, y)) {
+                    // Laske etäisyys kulmiin
+                    const distanceToCorners = this.getDistanceToCorners(x, y);
+                    const cornerWeight = Math.max(0, 1 - distanceToCorners / 10);
+                    
+                    // Laske todennäköisyys esteen syntymiselle
+                    const obstacleProbability = this.obstacleDensity * (1 + this.CORNER_WEIGHT * cornerWeight);
+                    
+                    map[y][x] = Math.random() < obstacleProbability ? 
+                        this.TILE_TYPES.OBSTACLE : this.TILE_TYPES.FLOOR;
+                }
+            }
+        }
+        
+        // Suodata esteet Cellular Automata -algoritmilla
+        for (let i = 0; i < this.CA_ITERATIONS; i++) {
+            this.applyCARules(map);
+            
+            // Lisää orgaanista kasvua joka toisella iteraatiolla
+            if (i % 2 === 0) {
+                this.applyOrganicGrowth(map);
+            }
+        }
+        
+        // Poista pienet estealueet
+        this.removeSmallObstacles(map);
+        
+        // Lisää viimeiset orgaaniset muodot
+        this.addOrganicDetails(map);
+    }
+    
+    applyCARules(map) {
+        const newMap = JSON.parse(JSON.stringify(map));
+        
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (!this.isNearSpecialTile(map, x, y)) {
+                    const neighbors = this.countNeighbors(map, x, y);
+                    
+                    if (map[y][x] === this.TILE_TYPES.OBSTACLE) {
+                        // Este kuolee, jos naapureita on liian vähän
+                        newMap[y][x] = neighbors < this.CA_DEATH_LIMIT ? 
+                            this.TILE_TYPES.FLOOR : this.TILE_TYPES.OBSTACLE;
+                    } else {
+                        // Lattia muuttuu esteeksi, jos naapureita on tarpeeksi
+                        newMap[y][x] = neighbors > this.CA_BIRTH_LIMIT ? 
+                            this.TILE_TYPES.OBSTACLE : this.TILE_TYPES.FLOOR;
+                    }
+                }
+            }
+        }
+        
+        // Kopioi uusi kartta takaisin
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                map[y][x] = newMap[y][x];
+            }
+        }
+    }
+    
+    applyOrganicGrowth(map) {
+        const newMap = JSON.parse(JSON.stringify(map));
+        
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (!this.isNearSpecialTile(map, x, y)) {
+                    // Tarkista diagonaalinaapurit
+                    const diagonalNeighbors = this.countDiagonalNeighbors(map, x, y);
+                    
+                    if (map[y][x] === this.TILE_TYPES.OBSTACLE) {
+                        // Este kasvaa orgaanisesti diagonaalisesti
+                        if (diagonalNeighbors >= 2 && Math.random() < this.ORGANIC_WEIGHT) {
+                            // Lisää satunnaisia esteitä diagonaaliin
+                            for (let dy = -1; dy <= 1; dy += 2) {
+                                for (let dx = -1; dx <= 1; dx += 2) {
+                                    const nx = x + dx;
+                                    const ny = y + dy;
+                                    if (this.isValidPosition(nx, ny) && Math.random() < 0.3) {
+                                        newMap[ny][nx] = this.TILE_TYPES.OBSTACLE;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Kopioi uusi kartta takaisin
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                map[y][x] = newMap[y][x];
+            }
+        }
+    }
+    
+    countDiagonalNeighbors(map, x, y) {
+        let count = 0;
+        for (let dy = -1; dy <= 1; dy += 2) {
+            for (let dx = -1; dx <= 1; dx += 2) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (this.isValidPosition(nx, ny) && map[ny][nx] === this.TILE_TYPES.OBSTACLE) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+    
+    addOrganicDetails(map) {
+        // Lisää pieniä yksityiskohtia esteisiin
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (map[y][x] === this.TILE_TYPES.OBSTACLE && !this.isNearSpecialTile(map, x, y)) {
+                    // Lisää satunnaisia pieniä muutoksia esteiden reunoille
+                    if (Math.random() < 0.2) {
+                        const directions = [
+                            {x: 0, y: -1}, {x: 1, y: 0},
+                            {x: 0, y: 1}, {x: -1, y: 0}
+                        ];
+                        
+                        // Valitse satunnainen suunta
+                        const dir = directions[Math.floor(Math.random() * directions.length)];
+                        const nx = x + dir.x;
+                        const ny = y + dir.y;
+                        
+                        if (this.isValidPosition(nx, ny) && map[ny][nx] === this.TILE_TYPES.FLOOR) {
+                            // Lisää pieni "uloke" esteeseen
+                            map[ny][nx] = this.TILE_TYPES.OBSTACLE;
+                            
+                            // Lisää todennäköisesti myös viereinen ruutu
+                            const nextX = nx + dir.x;
+                            const nextY = ny + dir.y;
+                            if (this.isValidPosition(nextX, nextY) && 
+                                map[nextY][nextX] === this.TILE_TYPES.FLOOR && 
+                                Math.random() < 0.5) {
+                                map[nextY][nextX] = this.TILE_TYPES.OBSTACLE;
+                            }
                         }
                     }
                 }
@@ -161,20 +349,103 @@ class MapGenerator {
         }
     }
     
-    /**
-     * Lisää esteitä kartalle
-     * @param {Array} map - Kartta, jota muokataan
-     */
-    addObstacles(map) {
+    removeSmallObstacles(map) {
+        const visited = new Set();
+        
         for (let y = 0; y < this.height; y++) {
             for (let x = 0; x < this.width; x++) {
-                // Ohita aloitus-, lopetus- ja polkupisteet
-                if (map[y][x] === this.TILE_TYPES.FLOOR) {
-                    // Tarkista, onko ruutu lähellä aloitus-, lopetus- tai polkupistettä
-                    if (!this.isNearSpecialTile(map, x, y)) {
-                        // Lisää este satunnaisesti
-                        if (Math.random() < this.obstacleDensity) {
-                            map[y][x] = this.TILE_TYPES.OBSTACLE;
+                if (map[y][x] === this.TILE_TYPES.OBSTACLE && !visited.has(`${x},${y}`)) {
+                    // Etsi kaikki yhteydessä olevat esteet
+                    const obstacleGroup = this.floodFill(map, x, y, visited);
+                    
+                    // Jos estealue on liian pieni, poista se
+                    if (obstacleGroup.length < this.MIN_OBSTACLE_SIZE) {
+                        for (const point of obstacleGroup) {
+                            map[point.y][point.x] = this.TILE_TYPES.FLOOR;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    floodFill(map, startX, startY, visited) {
+        const group = [];
+        const queue = [{x: startX, y: startY}];
+        
+        while (queue.length > 0) {
+            const current = queue.shift();
+            const key = `${current.x},${current.y}`;
+            
+            if (visited.has(key)) continue;
+            visited.add(key);
+            
+            if (map[current.y][current.x] === this.TILE_TYPES.OBSTACLE) {
+                group.push(current);
+                
+                // Tarkista naapurit
+                const directions = [
+                    {x: 0, y: -1}, {x: 1, y: 0},
+                    {x: 0, y: 1}, {x: -1, y: 0}
+                ];
+                
+                for (const dir of directions) {
+                    const nx = current.x + dir.x;
+                    const ny = current.y + dir.y;
+                    
+                    if (this.isValidPosition(nx, ny) && 
+                        map[ny][nx] === this.TILE_TYPES.OBSTACLE && 
+                        !visited.has(`${nx},${ny}`)) {
+                        queue.push({x: nx, y: ny});
+                    }
+                }
+            }
+        }
+        
+        return group;
+    }
+    
+    countNeighbors(map, x, y) {
+        let count = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                if (dx === 0 && dy === 0) continue;
+                
+                const nx = x + dx;
+                const ny = y + dy;
+                
+                if (this.isValidPosition(nx, ny) && map[ny][nx] === this.TILE_TYPES.OBSTACLE) {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+    
+    ensurePathsAreValid(map) {
+        // Tarkista, että polut ovat edelleen käytettävissä
+        for (const startPoint of this.startPoints) {
+            for (const endPoint of this.endPoints) {
+                const path = this.findPath(map, startPoint, endPoint);
+                if (!path) {
+                    // Jos polkua ei löydy, poista esteitä polun varrelta
+                    this.clearPathObstacles(map, startPoint, endPoint);
+                }
+            }
+        }
+    }
+    
+    clearPathObstacles(map, start, end) {
+        const path = this.findPath(map, start, end);
+        if (path) {
+            for (const point of path) {
+                // Poista esteet polun varrelta ja sen ympäriltä
+                for (let dy = -1; dy <= 1; dy++) {
+                    for (let dx = -1; dx <= 1; dx++) {
+                        const nx = point.x + dx;
+                        const ny = point.y + dy;
+                        if (this.isValidPosition(nx, ny)) {
+                            map[ny][nx] = this.TILE_TYPES.FLOOR;
                         }
                     }
                 }
@@ -413,5 +684,20 @@ class MapGenerator {
      */
     getTileTypes() {
         return this.TILE_TYPES;
+    }
+
+    getDistanceToCorners(x, y) {
+        // Laske etäisyys kaikkiin kulmiin
+        const corners = [
+            {x: 0, y: 0},
+            {x: this.width - 1, y: 0},
+            {x: 0, y: this.height - 1},
+            {x: this.width - 1, y: this.height - 1}
+        ];
+        
+        // Palauta pienin etäisyys kulmiin
+        return Math.min(...corners.map(corner => 
+            Math.sqrt(Math.pow(x - corner.x, 2) + Math.pow(y - corner.y, 2))
+        ));
     }
 } 
