@@ -80,6 +80,7 @@ class Game {
         this.assets.loadImage('button', 'assets/button.png');
         this.assets.loadImage('button2', 'assets/button2.png'); // Lisätään uusi button2 kuva
         this.assets.loadImage('scrap', 'assets/scrap.png'); // Lisätään scrap kuva
+        this.assets.loadImage('miniboss', 'assets/miniboss.png'); // Lisätään miniboss kuva
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
@@ -987,20 +988,20 @@ class Game {
         let isBoss = false;
         let isMiniBoss = false;
         
-        if (this.waveNumber % 5 === 0) {
-            // Mini-boss every 5th wave
-            isMiniBoss = true;
-            health *= 2;  // 2x health
-            speed *= 0.7; // Slightly faster
-            radius = 14 * this.scaleFactor;
-            color = '#FF8800';
-        } else if (this.waveNumber % 10 === 0) {
-            // Boss every 10th wave
+        if (this.waveNumber % 10 === 0) {
+            // Boss every 10th wave (check first)
             isBoss = true;
             health *= 3;  // 3x health
             speed *= 0.5; // Slower
             radius = 16 * this.scaleFactor;
             color = '#FF0000';
+        } else if (this.waveNumber % 5 === 0) {
+            // Mini-boss every 5th wave (only if not a boss wave)
+            isMiniBoss = true;
+            health *= 2;  // 2x health
+            speed *= 0.7; // Slightly faster
+            radius = 14 * this.scaleFactor;
+            color = '#FF8800';
         }
         
         // Create new creep with appropriate parameters
@@ -1346,7 +1347,51 @@ class Game {
         
         // Draw creeps
         for (const creep of this.creeps) {
-            creep.draw(this.ctx);
+            if (this.assets.isReady()) {
+                let img;
+                if (creep.isMiniBoss) {
+                    img = this.assets.getImage('miniboss');
+                } else if (creep.isBoss) {
+                    img = this.assets.getImage('creep'); // Käytetään normaalikuvaa bossille kunnes boss kuva on lisätty
+                } else {
+                    img = this.assets.getImage('creep');
+                }
+                
+                const size = creep.radius * 2;
+                this.drawImageMaintainAspectRatio(
+                    img,
+                    creep.x - creep.radius + this.gameArea.x,
+                    creep.y - creep.radius,
+                    size,
+                    size,
+                    true,
+                    true
+                );
+            } else {
+                // Fallback to circle if image not loaded
+                this.ctx.fillStyle = creep.color;
+                this.ctx.beginPath();
+                this.ctx.arc(creep.x + this.gameArea.x, creep.y, creep.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            // Draw health bar for creeps
+            if (creep.health < creep.maxHealth) {
+                const healthBarWidth = creep.radius * 2;
+                const healthBarHeight = 4 * this.scaleFactor;
+                const healthBarX = creep.x - creep.radius + this.gameArea.x;
+                const healthBarY = creep.y - creep.radius - 8 * this.scaleFactor;
+                
+                // Health bar background
+                this.ctx.fillStyle = 'rgba(51, 51, 51, 0.8)';
+                this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+                
+                // Health bar fill
+                const healthPercentage = creep.health / creep.maxHealth;
+                const color = healthPercentage > 0.5 ? '#4CAF50' : healthPercentage > 0.25 ? '#FFA500' : '#FF0000';
+                this.ctx.fillStyle = color;
+                this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
+            }
         }
         
         // Draw selection rectangle when dragging in scrap mode

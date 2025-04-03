@@ -1,42 +1,91 @@
-# Tower Defense Game
+# Tower Defense Peli
 
-A simple tube-like Tower Defense game with minimalist retrofuturistic style.
+Minimalistinen, retrofuturistinen Tower Defense -peli, jossa yhdistyy klassinen pelattavuus ja moderni toteutus.
 
-## How to Play
+## Pelin kuvaus
 
-1. Open `index.html` in your browser to start the game
-2. Click the "NEXT WAVE" button to start enemy waves
-3. Place towers by selecting them from the left panel and clicking on the game grid (each tower takes up a 2x2 area)
-4. Towers cost money and automatically fire at enemies
-5. Killing enemies gives you money to build more towers
-6. Create mazes with towers to slow down enemies
-7. If 10 enemies reach the bottom, the game is over
-8. Each wave gets progressively harder with more durable enemies
+Tower Defense on strategiapeli, jossa pelaajan tehtävänä on puolustaa aluetta rakentamalla puolustustorneja. Peli yhdistää taktisen suunnittelun ja resurssien hallinnan hauskalla tavalla.
 
-## Controls
+## Pelaaminen
 
-- **Mouse Click**: Place selected tower, press buttons, or sell towers in sell mode
-- **Mouse Drag**: Select multiple towers for selling (in sell mode)
-- **D Key**: Toggle debug mode, showing tower ranges
+1. Avaa `index.html` selaimessa aloittaaksesi pelin
+2. Aloita vihollisaallot painamalla "NEXT WAVE" -nappia
+3. Sijoita torneja valitsemalla ne vasemmasta paneelista ja klikkaamalla peliruudukkoa
+4. Jokainen torni vie 2x2 ruudun kokoisen alueen
+5. Tornit maksavat rahaa ja ampuvat vihollisia automaattisesti
+6. Vihollisten tuhoaminen antaa rahaa uusien tornien rakentamiseen
+7. Peli päättyy, jos 10 vihollista pääsee maaliin
+8. Jokainen aalto on edellistä vaikeampi ja viholliset kestävämpiä
 
-## Features
+## Ohjaus
 
-- Separate UI panel for game controls
-- Tower shop system
-- Tower selling (get half the cost back)
-- Health bars only appear when enemies are damaged
-- Economy system that scales with wave difficulty
-- Dynamic pathfinding (A* algorithm)
-- Enemies find new paths when blocked by towers
-- Wave-based progression system
-- Lives and score system
+- **Hiiren klikkaus**: Sijoita valittu torni, paina nappeja tai myy torneja myyntitilassa
+- **Hiiren raahaus**: Valitse useita torneja myyntiä varten (myyntitilassa)
+- **D-näppäin**: Vaihda debug-tila, näyttää tornien kantamat
 
-## Technical Implementation
+## Tekniset ominaisuudet
 
-The game is built with vanilla JavaScript using HTML5 Canvas. Main components:
+### Frontend
+- Toteutettu puhtaalla JavaScriptillä ja HTML5 Canvasilla
+- Responsiivinen käyttöliittymä
+- Dynaaminen tornien sijoitusjärjestelmä
+- Reaaliaikainen polunetsintä (A* algoritmi)
 
-- **Grid**: Manages the grid and tower placement
-- **Tower**: Tower functionality and enemy targeting
-- **Creep**: Enemy movement and pathfinding
-- **Pathfinding**: A* pathfinding algorithm implementation
-- **Game**: Main game loop and state management 
+### Tietokanta
+- SQLite-tietokanta huipputulosten tallentamiseen
+- Pelaajatietojen ja pelisessioiden seuranta
+- Tilastojen tallennus ja analysointi
+
+### Pääkomponentit
+- **Grid.js**: Ruudukon ja tornien sijoittelun hallinta
+- **Tower.js**: Tornien toiminnallisuus ja vihollisten tähtääminen
+- **Creep.js**: Vihollisten liikkuminen ja polunetsintä
+- **Pathfinding.js**: A* polunetsintäalgoritmin toteutus
+- **Game.js**: Pelin pääsilmukka ja tilanhallinta
+- **Database.js**: Tietokantaoperaatiot ja tilastojen käsittely
+
+## Tietokannan rakenne
+
+### Taulut
+
+#### Players
+- id (PRIMARY KEY)
+- username
+- created_at
+- last_played
+
+#### Scores
+- id (PRIMARY KEY)
+- player_id (FOREIGN KEY)
+- score
+- waves_completed
+- towers_built
+- enemies_killed
+- played_at
+
+#### GameStats
+- id (PRIMARY KEY)
+- game_id (FOREIGN KEY)
+- wave_number
+- resources_spent
+- damage_dealt
+- timestamp
+
+## Asennus ja käyttöönotto
+
+1. Kloonaa repositorio
+2. Varmista, että sinulla on SQLite asennettuna
+3. Suorita tietokannan alustusscripti: `init_db.sql`
+4. Avaa `index.html` selaimessa
+
+## Kehityssuunnitelma
+
+- [ ] Uusien tornityyppien lisääminen
+- [ ] Moninpelitilan kehittäminen
+- [ ] Saavutusjärjestelmän implementointi
+- [ ] Pelaajaprofiilien laajentaminen
+- [ ] Lisää tilastoja ja analytiikkaa
+
+## Lisenssi
+
+MIT License - Katso LICENSE tiedosto tarkempia tietoja varten. 
