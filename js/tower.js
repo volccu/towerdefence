@@ -72,21 +72,24 @@ class Tower {
         this.game = game;
         this.gridX = gridX;
         this.gridY = gridY;
+        this.type = type;
         this.x = gridX * game.grid.cellSize;
         this.y = gridY * game.grid.cellSize;
         this.width = game.grid.cellSize * 2;
         this.height = game.grid.cellSize * 2;
-        this.type = type;
-        this.color = type.color;
-        this.strokeColor = type.strokeColor;
         this.damage = type.damage;
         this.range = type.range;
         this.fireRate = type.fireRate;
         this.lastFireTime = 0;
-        this.cost = type.cost;
-        this.isWall = type.name === "Wall";
-        this.isScrapper = type.name === "Scrapper";
         this.projectiles = [];
+        this.isWall = type.name === "Wall";
+        this.isScrapper = type.isScrapper;
+        this.maxBounces = type.maxBounces || 0;
+        this.explosionRadius = type.explosionRadius || 0;
+        this.explosionDamage = type.explosionDamage || 0;
+        this.color = type.color;
+        this.strokeColor = type.strokeColor;
+        this.cost = type.cost;
         
         if (this.isScrapper) {
             this.scrapRate = type.scrapRate;
@@ -107,19 +110,75 @@ class Tower {
             const dy = projectile.targetY - projectile.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance < 5) {
+            // Move projectile with different speed based on tower type
+            let speed;
+            if (this.type.name === "Sniper") {
+                speed = 20; // Nopeampi nopeus Sniper-tornille
+            } else {
+                speed = 10; // Normaali nopeus muille torneille
+            }
+            
+            const vx = (dx / distance) * speed;
+            const vy = (dy / distance) * speed;
+            projectile.x += vx;
+            projectile.y += vy;
+            
+            // Tarkista osuminen uudella etäisyydellä
+            const newDx = projectile.targetX - projectile.x;
+            const newDy = projectile.targetY - projectile.y;
+            const newDistance = Math.sqrt(newDx * newDx + newDy * newDy);
+            
+            // Jos ammus on ohittanut kohteen tai on tarpeeksi lähellä
+            if (newDistance >= distance || newDistance < 10) {
                 // Projectile hit target
                 if (projectile.target.isAlive) {
                     projectile.target.takeDamage(this.damage);
+                    
+                    // Handle explosion damage
+                    if (this.explosionRadius > 0) {
+                        for (const creep of this.game.creeps) {
+                            if (!creep.isAlive || creep === projectile.target) continue;
+                            
+                            const dx = creep.x - projectile.x;
+                            const dy = creep.y - projectile.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance <= this.explosionRadius) {
+                                creep.takeDamage(this.explosionDamage);
+                            }
+                        }
+                    }
+                    
+                    // Handle bouncing projectile
+                    if (this.maxBounces > 0 && projectile.bounces < this.maxBounces) {
+                        // Find next target
+                        let nextTarget = null;
+                        let closestDistance = this.range;
+                        
+                        for (const creep of this.game.creeps) {
+                            if (!creep.isAlive || creep === projectile.target) continue;
+                            
+                            const dx = creep.x - projectile.x;
+                            const dy = creep.y - projectile.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance <= this.range && (!nextTarget || distance < closestDistance)) {
+                                nextTarget = creep;
+                                closestDistance = distance;
+                            }
+                        }
+                        
+                        if (nextTarget) {
+                            // Continue projectile to next target
+                            projectile.target = nextTarget;
+                            projectile.targetX = nextTarget.x;
+                            projectile.targetY = nextTarget.y;
+                            projectile.bounces++;
+                            continue;
+                        }
+                    }
                 }
                 this.projectiles.splice(i, 1);
-            } else {
-                // Move projectile
-                const speed = 10;
-                const vx = (dx / distance) * speed;
-                const vy = (dy / distance) * speed;
-                projectile.x += vx;
-                projectile.y += vy;
             }
         }
         
@@ -151,16 +210,17 @@ class Tower {
     }
 
     fireAt(target) {
-        // Create new projectile
-        const projectile = {
-            x: this.x + this.width / 2,
-            y: this.y + this.height / 2,
+        const towerCenterX = this.x + this.width / 2;
+        const towerCenterY = this.y + this.height / 2;
+        
+        this.projectiles.push({
+            x: towerCenterX,
+            y: towerCenterY,
             targetX: target.x,
             targetY: target.y,
-            target: target
-        };
-        
-        this.projectiles.push(projectile);
+            target: target,
+            bounces: 0
+        });
     }
 
     draw(ctx) {

@@ -79,6 +79,7 @@ class Game {
         this.assets.loadImage('base', 'assets/base.png');
         this.assets.loadImage('button', 'assets/button.png');
         this.assets.loadImage('button2', 'assets/button2.png'); // Lisätään uusi button2 kuva
+        this.assets.loadImage('scrap', 'assets/scrap.png'); // Lisätään scrap kuva
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
@@ -157,6 +158,39 @@ class Game {
                 fireRate: 1,
                 color: "#00AAFF",
                 strokeColor: "#0088CC"
+            },
+            {
+                name: "Bouncer",
+                description: "Ammu kimpoileva ammus joka vahingoittaa useita vihollisia",
+                cost: 60,
+                damage: 15,
+                range: 150 * this.scaleFactor,
+                fireRate: 0.8,
+                color: "#00AAFF",
+                strokeColor: "#0088CC",
+                maxBounces: 3
+            },
+            {
+                name: "RPG",
+                description: "Ammu räjähtävä ammus joka vahingoittaa kaikkia lähellä olevia vihollisia",
+                cost: 80,
+                damage: 25,
+                range: 120 * this.scaleFactor,
+                fireRate: 0.5,
+                color: "#FF4500",
+                strokeColor: "#8B0000",
+                explosionRadius: 50 * this.scaleFactor,
+                explosionDamage: 15
+            },
+            {
+                name: "Sniper",
+                description: "Tarkka-ampuja joka osuu kaikkialle kartalle",
+                cost: 120,
+                damage: 50,
+                range: 9999 * this.scaleFactor, // Käytännössä ääretön kantama
+                fireRate: 0.2,
+                color: "#800080",
+                strokeColor: "#4B0082"
             },
             {
                 name: "Wall",
@@ -380,9 +414,9 @@ class Game {
             // Check if click hit tower selection buttons
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
-                    x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
-                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                    width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
+                    x: this.uiPanel.x + 15 * this.scaleFactor,
+                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                    width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
                     height: 80 * this.scaleFactor
                 };
                 
@@ -486,9 +520,9 @@ class Game {
             if (!isOverButton) {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
-                        x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
-                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                        width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
+                        x: this.uiPanel.x + 15 * this.scaleFactor,
+                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                        width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
                         height: 80 * this.scaleFactor
                     };
                     
@@ -707,7 +741,7 @@ class Game {
         if (this.scraps < towerType.cost) {
             // Only show "not enough scraps" message if not in continuous build mode
             if (!this.isContinuousBuild) {
-                this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000");
+                this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000", true);
             }
             return false;
         }
@@ -918,7 +952,18 @@ class Game {
             this.waveReached = this.waveNumber;
         }
         
-        this.creepsToSpawn = 5 + this.waveNumber * 2; // More creeps each wave
+        // Set creepsToSpawn based on wave type
+        if (this.waveNumber % 5 === 0) {
+            // Mini-boss wave
+            this.creepsToSpawn = 5;
+        } else if (this.waveNumber % 10 === 0) {
+            // Boss wave
+            this.creepsToSpawn = 5;
+        } else {
+            // Normal wave
+            this.creepsToSpawn = 5 + this.waveNumber * 2;
+        }
+        
         this.lastSpawnTime = 0;
         this.waveActive = true;
     }
@@ -942,22 +987,20 @@ class Game {
         let isBoss = false;
         let isMiniBoss = false;
         
-        if (this.waveNumber % 10 === 0) {
-            // Boss every 10th wave - nerfed
+        if (this.waveNumber % 5 === 0) {
+            // Mini-boss every 5th wave
+            isMiniBoss = true;
+            health *= 2;  // 2x health
+            speed *= 0.7; // Slightly faster
+            radius = 14 * this.scaleFactor;
+            color = '#FF8800';
+        } else if (this.waveNumber % 10 === 0) {
+            // Boss every 10th wave
             isBoss = true;
-            health *= 3;  // Reduced from 5x to 3x
-            speed *= 0.5; // Slightly faster than before
+            health *= 3;  // 3x health
+            speed *= 0.5; // Slower
             radius = 16 * this.scaleFactor;
             color = '#FF0000';
-            this.creepsToSpawn = 5; // Fixed to 5 bosses
-        } else if (this.waveNumber % 5 === 0) {
-            // Mini-boss every 5th wave - nerfed
-            isMiniBoss = true;
-            health *= 2;  // Reduced from 2.5x to 2x
-            speed *= 0.7; // Faster than before
-            radius = 14 * this.scaleFactor; // Increased from 12 to 14
-            color = '#FF8800';
-            this.creepsToSpawn = 5; // Fixed to 5 minibosses
         }
         
         // Create new creep with appropriate parameters
@@ -1064,6 +1107,26 @@ class Game {
             text.life -= 1; // Decrease life
             text.alpha = text.life / 60; // Fade out
             
+            // Draw scrap icon if needed
+            if (text.showScrapIcon && this.assets.isReady()) {
+                const scrapImg = this.assets.getImage('scrap');
+                const scrapSize = 15 * this.scaleFactor;
+                this.ctx.globalAlpha = text.alpha;
+                this.drawImageMaintainAspectRatio(
+                    scrapImg,
+                    text.x - 20 * this.scaleFactor,
+                    text.y - scrapSize/2,
+                    scrapSize,
+                    scrapSize
+                );
+                this.ctx.globalAlpha = 1.0;
+            }
+            
+            this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
+            this.ctx.font = 'bold 16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(text.text, text.x, text.y);
+            
             // Remove dead texts
             if (text.life <= 0) {
                 this.floatingTexts.splice(i, 1);
@@ -1113,10 +1176,10 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-            this.ctx.fillStyle = this.spawnPoint.color;
-            this.ctx.beginPath();
-            this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
-            this.ctx.fill();
+        this.ctx.fillStyle = this.spawnPoint.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
+        this.ctx.fill();
         }
         
         // Draw home point with image and health bar
@@ -1132,10 +1195,10 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-            this.ctx.fillStyle = this.homePoint.color;
-            this.ctx.beginPath();
-            this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
-            this.ctx.fill();
+        this.ctx.fillStyle = this.homePoint.color;
+        this.ctx.beginPath();
+        this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
+        this.ctx.fill();
         }
 
         // Draw health bar over base only when damage flash is active
@@ -1211,7 +1274,7 @@ class Game {
         for (const tower of this.towers) {
             if (tower.isWall) {
                 // Seinät piirretään normaalisti
-                tower.draw(this.ctx);
+            tower.draw(this.ctx);
             } else if (tower.isScrapper) {
                 // Scrapperit piirretään normaalisti
                 tower.draw(this.ctx);
@@ -1316,11 +1379,36 @@ class Game {
         }
         
         // Draw floating texts
-        for (const text of this.floatingTexts) {
+        for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
+            const text = this.floatingTexts[i];
+            text.y -= 1; // Move upward
+            text.life -= 1; // Decrease life
+            text.alpha = text.life / 60; // Fade out
+            
+            // Draw scrap icon if needed
+            if (text.showScrapIcon && this.assets.isReady()) {
+                const scrapImg = this.assets.getImage('scrap');
+                const scrapSize = 15 * this.scaleFactor;
+                this.ctx.globalAlpha = text.alpha;
+                this.drawImageMaintainAspectRatio(
+                    scrapImg,
+                    text.x - 20 * this.scaleFactor,
+                    text.y - scrapSize/2,
+                    scrapSize,
+                    scrapSize
+                );
+                this.ctx.globalAlpha = 1.0;
+            }
+            
             this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
             this.ctx.font = 'bold 16px Arial';
             this.ctx.textAlign = 'center';
             this.ctx.fillText(text.text, text.x, text.y);
+            
+            // Remove dead texts
+            if (text.life <= 0) {
+                this.floatingTexts.splice(i, 1);
+            }
         }
         
         // Restore clip to draw UI outside game area
@@ -1451,10 +1539,23 @@ class Game {
             this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width / 2,
             this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height / 2
         );
+        
+        // Draw cost with scrap icon
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            this.drawImageMaintainAspectRatio(
+                scrapImg,
+                this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width/2 - 30 * this.scaleFactor,
+                this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 15 * this.scaleFactor,
+                scrapSize,
+                scrapSize
+            );
+        }
         this.ctx.fillText(
-            `${this.upgradeButtons.damage.cost} Scraps`,
-            this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width / 2,
-            this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 15 * this.scaleFactor
+            `${this.upgradeButtons.damage.cost}`,
+            this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width/2,
+            this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 25 * this.scaleFactor
         );
         
         // Draw fire rate upgrade button
@@ -1475,10 +1576,23 @@ class Game {
             this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width / 2,
             this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height / 2
         );
+        
+        // Draw cost with scrap icon
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            this.drawImageMaintainAspectRatio(
+                scrapImg,
+                this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width/2 - 30 * this.scaleFactor,
+                this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 15 * this.scaleFactor,
+                scrapSize,
+                scrapSize
+            );
+        }
         this.ctx.fillText(
-            `${this.upgradeButtons.fireRate.cost} Scraps`,
-            this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width / 2,
-            this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 15 * this.scaleFactor
+            `${this.upgradeButtons.fireRate.cost}`,
+            this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width/2,
+            this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 25 * this.scaleFactor
         );
         
         // Draw range upgrade button
@@ -1499,10 +1613,23 @@ class Game {
             this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width / 2,
             this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height / 2
         );
+        
+        // Draw cost with scrap icon
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            this.drawImageMaintainAspectRatio(
+                scrapImg,
+                this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width/2 - 30 * this.scaleFactor,
+                this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 15 * this.scaleFactor,
+                scrapSize,
+                scrapSize
+            );
+        }
         this.ctx.fillText(
-            `${this.upgradeButtons.range.cost} Scraps`,
-            this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width / 2,
-            this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 15 * this.scaleFactor
+            `${this.upgradeButtons.range.cost}`,
+            this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width/2,
+            this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 25 * this.scaleFactor
         );
     }
 
@@ -1511,7 +1638,21 @@ class Game {
         this.ctx.font = 'bold 20px Arial';
         this.ctx.fillStyle = '#FFD700';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText(`SCRAPS: ${this.scraps}`, this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
+        
+        // Draw scrap icon
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 20 * this.scaleFactor;
+            this.drawImageMaintainAspectRatio(
+                scrapImg,
+                this.uiPanel.x + 20 * this.scaleFactor,
+                this.uiPanel.y + 10 * this.scaleFactor,
+                scrapSize,
+                scrapSize
+            );
+        }
+        
+        this.ctx.fillText(`${this.scraps}`, this.uiPanel.x + 50 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
         
         this.ctx.fillStyle = '#FFF';
         this.ctx.fillText(`WAVE: ${this.waveNumber}`, this.uiPanel.x + 120 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
@@ -1526,9 +1667,9 @@ class Game {
         for (let i = 0; i < this.towerTypes.length; i++) {
             const tower = this.towerTypes[i];
             const buttonRect = {
-                x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
-                y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
+                x: this.uiPanel.x + 15 * this.scaleFactor,
+                y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
                 height: 80 * this.scaleFactor
             };
             
@@ -1546,8 +1687,8 @@ class Game {
                 );
             } else {
                 // Fallback to colored rectangle if image not loaded
-                this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
-                this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+            this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
+            this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
             }
             
             // Draw tower sprite
@@ -1584,7 +1725,7 @@ class Game {
                 }
             } else {
                 // Fallback to colored rectangles if images not loaded
-                this.ctx.fillStyle = tower.color;
+            this.ctx.fillStyle = tower.color;
                 if (tower.name === "Wall") {
                     this.ctx.fillRect(buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
                 } else {
@@ -1598,9 +1739,20 @@ class Game {
             this.ctx.textAlign = 'left';
             this.ctx.fillText(tower.name, buttonRect.x + 80 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor);
             
-            // Draw cost
+            // Draw cost with scrap icon
+            if (this.assets.isReady()) {
+                const scrapImg = this.assets.getImage('scrap');
+                const scrapSize = 15 * this.scaleFactor;
+                this.drawImageMaintainAspectRatio(
+                    scrapImg,
+                    buttonRect.x + 80 * this.scaleFactor,
+                    buttonRect.y + 45 * this.scaleFactor,
+                    scrapSize,
+                    scrapSize
+                );
+            }
             this.ctx.font = '16px Arial';
-            this.ctx.fillText(`${tower.cost} Scraps`, buttonRect.x + 80 * this.scaleFactor, buttonRect.y + 55 * this.scaleFactor);
+            this.ctx.fillText(`${tower.cost}`, buttonRect.x + 100 * this.scaleFactor, buttonRect.y + 55 * this.scaleFactor);
             
             // Draw hover tooltip if this tower is being hovered over
             if (this.hoveredTowerType === i) {
@@ -1610,36 +1762,13 @@ class Game {
         
         // Draw tower info if a tower is selected
         if (this.selectedTower && !this.scrapMode) {
-            if (this.selectedTower.isWall) {
-                // For walls, just show a message
-                this.ctx.font = 'bold 18px Arial';
-                this.ctx.fillStyle = '#FFF';
-                this.ctx.textAlign = 'left';
-                this.ctx.fillText('WALL', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 350 * this.scaleFactor);
-                
-                this.ctx.font = '14px Arial';
-                this.ctx.fillText("This just looks like an ordinary wall", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 380 * this.scaleFactor);
-            } else if (this.selectedTower.isScrapper) {
-                // For scrapper, show doomer message
-                this.ctx.font = 'bold 18px Arial';
-                this.ctx.fillStyle = '#FFF';
-                this.ctx.textAlign = 'left';
-                this.ctx.fillText('SCRAPPER', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 350 * this.scaleFactor);
-                
-                this.ctx.font = '14px Arial';
-                this.ctx.fillStyle = '#888';
-                this.ctx.fillText("In this desolate wasteland, even the scraps", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 380 * this.scaleFactor);
-                this.ctx.fillText("of our past civilization hold value.", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 400 * this.scaleFactor);
-                this.ctx.fillText("This machine tirelessly processes the debris", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 420 * this.scaleFactor);
-                this.ctx.fillText("of our fallen world, turning waste into", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 440 * this.scaleFactor);
-                this.ctx.fillText("precious resources for our survival.", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 460 * this.scaleFactor);
-            }
+            // Poistetaan wall ja scrapper kuvaukset kokonaan
         }
 
         // Draw Next Wave button
-        if (!this.waveActive) {
+            if (!this.waveActive) {
             this.ctx.fillStyle = '#4CAF50';
-        } else {
+            } else {
             this.ctx.fillStyle = '#666666';
         }
         
@@ -1664,18 +1793,18 @@ class Game {
                 this.nextWaveButton.height
             );
         }
-        
-        // Draw button text
+            
+            // Draw button text
         this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
-        this.ctx.font = '16px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            this.nextWaveButton.text,
-            this.nextWaveButton.x + this.nextWaveButton.width / 2,
-            this.nextWaveButton.y + this.nextWaveButton.height / 2
-        );
-        
+            this.ctx.font = '16px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(
+                this.nextWaveButton.text,
+                this.nextWaveButton.x + this.nextWaveButton.width / 2,
+                this.nextWaveButton.y + this.nextWaveButton.height / 2
+            );
+            
         // Draw Scrap Mode button
         this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
         
@@ -1685,8 +1814,8 @@ class Game {
             this.drawImageMaintainAspectRatio(
                 buttonImg,
                 this.scrapModeButton.x,
-                this.scrapModeButton.y,
-                this.scrapModeButton.width,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
                 this.scrapModeButton.height
             );
             
@@ -1710,14 +1839,14 @@ class Game {
                 this.scrapModeButton.height
             );
         }
-        
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(
+            
+            // Draw button text
+            this.ctx.fillStyle = '#FFFFFF';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(
             this.scrapModeButton.text,
-            this.scrapModeButton.x + this.scrapModeButton.width / 2,
-            this.scrapModeButton.y + this.scrapModeButton.height / 2
+            this.scrapModeButton.x + this.scrapModeButton.width/2,
+            this.scrapModeButton.y + this.scrapModeButton.height/2
         );
     }
     
@@ -1747,6 +1876,11 @@ class Game {
             this.ctx.fillText("targets and attacks nearby creeps.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
             this.ctx.fillText(`Damage: ${tower.damage} | Range: ${tower.range}`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
             this.ctx.fillText(`Fire Rate: ${tower.fireRate}/s`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
+        } else if (tower.name === "Bouncer") {
+            this.ctx.fillText("A turret that fires bouncing projectiles", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("that can hit multiple enemies.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText(`Damage: ${tower.damage} | Range: ${tower.range}`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+            this.ctx.fillText(`Bounces: ${tower.maxBounces} | Rate: ${tower.fireRate}/s`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
         } else if (tower.name === "Wall") {
             this.ctx.fillText("A simple barrier that blocks creep", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
             this.ctx.fillText("movement and forces them to take", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
@@ -1756,6 +1890,16 @@ class Game {
             this.ctx.fillText("automatically generates scraps during", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
             this.ctx.fillText("active waves.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
             this.ctx.fillText(`+${tower.scrapRate} scrap every ${tower.scrapInterval/1000}s during waves`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
+        } else if (tower.name === "RPG") {
+            this.ctx.fillText("A turret that fires explosive projectiles", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("that damage all enemies in the blast radius.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText(`Direct Hit: ${tower.damage} | Range: ${tower.range}`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+            this.ctx.fillText(`Explosion: ${tower.explosionDamage} | Radius: ${tower.explosionRadius}`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
+        } else if (tower.name === "Sniper") {
+            this.ctx.fillText("A sniper turret that can hit any target", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 60 * this.scaleFactor);
+            this.ctx.fillText("on the map with devastating damage.", buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 45 * this.scaleFactor);
+            this.ctx.fillText(`Damage: ${tower.damage} | Range: Global`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 30 * this.scaleFactor);
+            this.ctx.fillText(`Fire Rate: ${tower.fireRate}/s`, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 15 * this.scaleFactor);
         }
     }
 
@@ -1791,14 +1935,15 @@ class Game {
     }
 
     // Add a floating text effect
-    addFloatingText(x, y, text, color) {
+    addFloatingText(x, y, text, color, showScrapIcon = false) {
         this.floatingTexts.push({
             x: x,
             y: y,
             text: text,
             color: color,
             alpha: 1.0,
-            life: 120 // Increased from 60 to 120 frames (twice as long)
+            life: 120,
+            showScrapIcon: showScrapIcon
         });
     }
 
