@@ -67,23 +67,23 @@ class Game {
             x: 0,
             y: 0,
             width: 900 * this.scaleFactor,
-            height: 80 * this.scaleFactor
+            height: 0 // Poistetaan stats paneeli kokonaan
         };
         
-        // Game area definition (now below stats)
+        // Game area definition (now at top)
         this.gameArea = {
             x: 0,
-            y: this.statsPanel.height, // Below stats
+            y: 0, // Siirretään ylös
             width: 600 * this.scaleFactor,
-            height: 720 * this.scaleFactor
+            height: 800 * this.scaleFactor // Kasvatetaan korkeutta
         };
         
         // UI panel on right side
         this.uiPanel = {
             x: 600 * this.scaleFactor,
-            y: this.statsPanel.height, // Below stats
+            y: 0, // Siirretään ylös
             width: 300 * this.scaleFactor,
-            height: 720 * this.scaleFactor
+            height: 800 * this.scaleFactor // Kasvatetaan korkeutta
         };
         
         // Grid (small cells)
@@ -202,18 +202,18 @@ class Game {
             strokeColor: "#33CC33"
         };
         
-        // UI Buttons (now on top stats bar)
+        // UI Buttons (now in UI panel)
         this.nextWaveButton = {
-            x: this.statsPanel.x + 620 * this.scaleFactor,
-            y: this.statsPanel.y + 20 * this.scaleFactor,
+            x: this.uiPanel.x + 20 * this.scaleFactor,
+            y: this.uiPanel.y + 500 * this.scaleFactor,
             width: 120 * this.scaleFactor,
             height: 40 * this.scaleFactor,
             text: "NEXT WAVE"
         };
         
         this.scrapModeButton = {
-            x: this.statsPanel.x + 760 * this.scaleFactor,
-            y: this.statsPanel.y + 20 * this.scaleFactor,
+            x: this.uiPanel.x + 160 * this.scaleFactor,
+            y: this.uiPanel.y + 500 * this.scaleFactor,
             width: 120 * this.scaleFactor,
             height: 40 * this.scaleFactor,
             text: "SCRAP",
@@ -259,8 +259,8 @@ class Game {
         
         // Tower tooltip for upgrades
         this.towerTooltip = {
-            width: 200 * this.scaleFactor,
-            height: 150 * this.scaleFactor,
+            width: 300 * this.scaleFactor,
+            height: 180 * this.scaleFactor,
             padding: 10 * this.scaleFactor,
             visible: false,
             x: 0,
@@ -294,7 +294,9 @@ class Game {
         this.damageFlash = {
             active: false,
             duration: 0,
-            maxDuration: 15 // frames
+            maxDuration: 60, // frames (1 sekunti 60fps)
+            showHealthBar: false,
+            healthBarAlpha: 1.0 // Lisätään alpha-arvo health barille
         };
     }
 
@@ -354,7 +356,7 @@ class Game {
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
                     x: this.uiPanel.x + 20 * this.scaleFactor,
-                    y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
                     width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
                     height: 80 * this.scaleFactor
                 };
@@ -460,7 +462,7 @@ class Game {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
                         x: this.uiPanel.x + 20 * this.scaleFactor,
-                        y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
                         width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
                         height: 80 * this.scaleFactor
                     };
@@ -922,14 +924,15 @@ class Game {
             speed *= 0.5; // Slightly faster than before
             radius = 16 * this.scaleFactor;
             color = '#FF0000';
-            this.creepsToSpawn = Math.min(5, this.creepsToSpawn); // Max 5 bosses
+            this.creepsToSpawn = 5; // Fixed to 5 bosses
         } else if (this.waveNumber % 5 === 0) {
             // Mini-boss every 5th wave - nerfed
             isMiniBoss = true;
             health *= 2;  // Reduced from 2.5x to 2x
             speed *= 0.7; // Faster than before
-            radius = 12 * this.scaleFactor;
+            radius = 14 * this.scaleFactor; // Increased from 12 to 14
             color = '#FF8800';
+            this.creepsToSpawn = 5; // Fixed to 5 minibosses
         }
         
         // Create new creep with appropriate parameters
@@ -967,9 +970,10 @@ class Game {
                 if (creep.reachedEnd) {
                     // Creep reached the end
                     this.playerLives--;
-                    // Trigger damage flash
+                    // Trigger damage flash and show health bar
                     this.damageFlash.active = true;
                     this.damageFlash.duration = this.damageFlash.maxDuration;
+                    this.damageFlash.showHealthBar = true;
                 } else if (creep.attackingTower) {
                     // Creep was attacking tower but died
                     // Tower damage already handled in creep.update()
@@ -978,6 +982,13 @@ class Game {
                     // Improved economy - more scraps for later waves
                     const reward = 15 + Math.floor(this.waveNumber * 1.5);
                     this.scraps += reward;
+                    // Show floating text for scrap reward
+                    this.addFloatingText(
+                        creep.x,
+                        creep.y,
+                        `+${reward}`,
+                        "#FFD700"
+                    );
                 }
                 this.creeps.splice(i, 1);
             }
@@ -1005,8 +1016,19 @@ class Game {
         // Update damage flash effect
         if (this.damageFlash.active) {
             this.damageFlash.duration--;
+            
+            // Laske health barin alpha-arvo
+            if (this.damageFlash.duration > 30) { // 0.5 sekuntia täysin näkyvä
+                this.damageFlash.healthBarAlpha = 1.0;
+            } else {
+                // Fade out viimeisen 0.5 sekunnin aikana
+                this.damageFlash.healthBarAlpha = this.damageFlash.duration / 30;
+            }
+            
             if (this.damageFlash.duration <= 0) {
                 this.damageFlash.active = false;
+                this.damageFlash.showHealthBar = false;
+                this.damageFlash.healthBarAlpha = 1.0;
             }
         }
         
@@ -1064,13 +1086,13 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-        this.ctx.fillStyle = this.spawnPoint.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
-        this.ctx.fill();
+            this.ctx.fillStyle = this.spawnPoint.color;
+            this.ctx.beginPath();
+            this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         
-        // Draw home point with image
+        // Draw home point with image and health bar
         if (this.assets.isReady()) {
             const baseImg = this.assets.getImage('base');
             const baseSize = this.homePoint.radius * 2;
@@ -1083,10 +1105,29 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-        this.ctx.fillStyle = this.homePoint.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
-        this.ctx.fill();
+            this.ctx.fillStyle = this.homePoint.color;
+            this.ctx.beginPath();
+            this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Draw health bar over base only when damage flash is active
+        if (this.damageFlash.showHealthBar) {
+            const healthBarWidth = 60 * this.scaleFactor;
+            const healthBarHeight = 8 * this.scaleFactor;
+            const healthBarX = this.homePoint.x - healthBarWidth / 2;
+            const healthBarY = this.homePoint.y - this.homePoint.radius - 15 * this.scaleFactor;
+            
+            // Health bar background with alpha
+            this.ctx.fillStyle = `rgba(51, 51, 51, ${this.damageFlash.healthBarAlpha})`;
+            this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+            
+            // Health bar fill with alpha
+            const healthPercentage = this.playerLives / 10;
+            const color = healthPercentage > 0.5 ? '#4CAF50' : healthPercentage > 0.25 ? '#FFA500' : '#FF0000';
+            const rgb = this.hexToRgb(color);
+            this.ctx.fillStyle = `rgba(${rgb}, ${this.damageFlash.healthBarAlpha})`;
+            this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
         }
         
         // Apply clip to prevent tower range circles from appearing over UI
@@ -1304,23 +1345,18 @@ class Game {
         this.ctx.font = '16px "Courier New", monospace';
         this.ctx.textAlign = 'left';
         this.ctx.fillText(
-            `Selected Tower:`,
+            `Damage: ${this.selectedTower.damage}`,
             this.towerTooltip.x + this.towerTooltip.padding,
             this.towerTooltip.y + 30 * this.scaleFactor
         );
         this.ctx.fillText(
-            `Damage: ${this.selectedTower.damage}`,
+            `Rate: ${this.selectedTower.fireRate.toFixed(2)}`,
             this.towerTooltip.x + this.towerTooltip.padding,
             this.towerTooltip.y + 50 * this.scaleFactor
         );
-        this.ctx.fillText(
-            `Rate: ${this.selectedTower.fireRate.toFixed(2)}`,
-            this.towerTooltip.x + this.towerTooltip.padding,
-            this.towerTooltip.y + 70 * this.scaleFactor
-        );
         
         // Position buttons
-        const buttonY = this.towerTooltip.y + 90 * this.scaleFactor;
+        const buttonY = this.towerTooltip.y + 70 * this.scaleFactor;
         const buttonSpacing = 10 * this.scaleFactor;
         const totalButtonWidth = this.towerTooltip.buttons.damage.width + 
                                 this.towerTooltip.buttons.fireRate.width + 
@@ -1404,18 +1440,27 @@ class Game {
     }
 
     drawUI() {
+        // Draw scraps amount and wave number above crafting menu
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText(`SCRAPS: ${this.scraps}`, this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
+        
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.fillText(`WAVE: ${this.waveNumber}`, this.uiPanel.x + 200 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
+        
         // Tower shop section
         this.ctx.font = 'bold 20px Arial';
         this.ctx.fillStyle = '#FFF';
         this.ctx.textAlign = 'left';
-        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
+        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 80 * this.scaleFactor);
         
         // Draw tower selection buttons with sprite images
         for (let i = 0; i < this.towerTypes.length; i++) {
             const tower = this.towerTypes[i];
             const buttonRect = {
                 x: this.uiPanel.x + 20 * this.scaleFactor,
-                y: this.uiPanel.y + 50 * this.scaleFactor + i * 100 * this.scaleFactor,
+                y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
                 width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
                 height: 80 * this.scaleFactor
             };
@@ -1439,7 +1484,7 @@ class Game {
                 }
             } else {
                 // Fallback to colored rectangles if images not loaded
-            this.ctx.fillStyle = tower.color;
+                this.ctx.fillStyle = tower.color;
                 if (tower.name === "Wall") {
                     this.ctx.fillRect(buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
                 } else {
@@ -1467,12 +1512,12 @@ class Game {
         if (this.selectedTower && !this.scrapMode) {
             if (this.selectedTower.isWall) {
                 // For walls, just show a message
-            this.ctx.font = 'bold 18px Arial';
-            this.ctx.fillStyle = '#FFF';
-            this.ctx.textAlign = 'left';
+                this.ctx.font = 'bold 18px Arial';
+                this.ctx.fillStyle = '#FFF';
+                this.ctx.textAlign = 'left';
                 this.ctx.fillText('WALL', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 350 * this.scaleFactor);
-            
-            this.ctx.font = '14px Arial';
+                
+                this.ctx.font = '14px Arial';
                 this.ctx.fillText("This just looks like an ordinary wall", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 380 * this.scaleFactor);
             } else if (this.selectedTower.isScrapper) {
                 // For scrapper, show doomer message
@@ -1489,8 +1534,91 @@ class Game {
                 this.ctx.fillText("of our fallen world, turning waste into", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 440 * this.scaleFactor);
                 this.ctx.fillText("precious resources for our survival.", this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 460 * this.scaleFactor);
             }
-            // Normal tower upgrade UI is now drawn in drawTowerUpgradeInfo method
         }
+
+        // Draw Next Wave button
+        if (!this.waveActive) {
+            this.ctx.fillStyle = '#4CAF50';
+        } else {
+            this.ctx.fillStyle = '#666666';
+        }
+        
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
+            this.ctx.drawImage(
+                buttonImg,
+                this.nextWaveButton.x,
+                this.nextWaveButton.y,
+                this.nextWaveButton.width,
+                this.nextWaveButton.height
+            );
+            this.ctx.globalAlpha = 1;
+        } else {
+            // Fallback to rectangle if image not loaded
+            this.ctx.fillRect(
+                this.nextWaveButton.x,
+                this.nextWaveButton.y, 
+                this.nextWaveButton.width, 
+                this.nextWaveButton.height
+            );
+        }
+        
+        // Draw button text
+        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
+        this.ctx.font = '16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            this.nextWaveButton.text,
+            this.nextWaveButton.x + this.nextWaveButton.width / 2,
+            this.nextWaveButton.y + this.nextWaveButton.height / 2
+        );
+        
+        // Draw Scrap Mode button
+        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
+        
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.ctx.drawImage(
+                buttonImg,
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+            
+            // Draw highlight when active
+            if (this.scrapModeButton.active) {
+                this.ctx.strokeStyle = '#FF0000';
+                this.ctx.lineWidth = 3 * this.scaleFactor;
+                this.ctx.strokeRect(
+                    this.scrapModeButton.x,
+                    this.scrapModeButton.y, 
+                    this.scrapModeButton.width, 
+                    this.scrapModeButton.height
+                );
+            }
+        } else {
+            // Fallback to rectangle if image not loaded
+            this.ctx.fillRect(
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+        }
+        
+        // Draw button text
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            this.scrapModeButton.text,
+            this.scrapModeButton.x + this.scrapModeButton.width / 2,
+            this.scrapModeButton.y + this.scrapModeButton.height / 2
+        );
     }
     
     // Draw tooltip for tower when hovering over it in the crafting menu
@@ -1536,110 +1664,6 @@ class Game {
         this.ctx.font = `${20 * this.scaleFactor}px Arial`;
         this.ctx.textAlign = 'left';
         this.ctx.fillStyle = '#FFF';
-        
-        // Scraps and wave
-        this.ctx.fillText(`Scraps: ${this.scraps}`, 20 * this.scaleFactor, 35 * this.scaleFactor);
-        this.ctx.fillText(`Wave: ${this.waveNumber}`, 160 * this.scaleFactor, 35 * this.scaleFactor);
-        
-        // Draw health bar over base
-        const healthBarWidth = 60 * this.scaleFactor;
-        const healthBarHeight = 8 * this.scaleFactor;
-        const healthBarX = this.homePoint.x - healthBarWidth / 2;
-        const healthBarY = this.homePoint.y - this.homePoint.radius - 15 * this.scaleFactor;
-        
-        // Health bar background
-        this.ctx.fillStyle = '#333';
-        this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
-        
-        // Health bar fill
-        const healthPercentage = this.playerLives / 10;
-        this.ctx.fillStyle = healthPercentage > 0.5 ? '#4CAF50' : healthPercentage > 0.25 ? '#FFA500' : '#FF0000';
-        this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
-        
-        // Draw buttons
-        // Next Wave button
-            if (!this.waveActive) {
-            this.ctx.fillStyle = '#4CAF50';
-            } else {
-            this.ctx.fillStyle = '#666666';
-        }
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
-            this.ctx.drawImage(
-                buttonImg,
-                this.nextWaveButton.x,
-                this.nextWaveButton.y,
-                this.nextWaveButton.width,
-                this.nextWaveButton.height
-            );
-            this.ctx.globalAlpha = 1;
-        } else {
-            // Fallback to rectangle if image not loaded
-            this.ctx.fillRect(
-                this.nextWaveButton.x,
-                this.nextWaveButton.y, 
-                this.nextWaveButton.width, 
-                this.nextWaveButton.height
-            );
-        }
-            
-            // Draw button text
-        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
-            this.ctx.font = '16px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(
-                this.nextWaveButton.text,
-                this.nextWaveButton.x + this.nextWaveButton.width / 2,
-                this.nextWaveButton.y + this.nextWaveButton.height / 2
-            );
-            
-        // Scrap Mode button
-        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.ctx.drawImage(
-                buttonImg,
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-            
-            // Draw highlight when active
-            if (this.scrapModeButton.active) {
-                this.ctx.strokeStyle = '#FF0000';
-                this.ctx.lineWidth = 3 * this.scaleFactor;
-                this.ctx.strokeRect(
-                    this.scrapModeButton.x,
-                    this.scrapModeButton.y, 
-                    this.scrapModeButton.width, 
-                    this.scrapModeButton.height
-                );
-            }
-        } else {
-            // Fallback to rectangle if image not loaded
-            this.ctx.fillRect(
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-        }
-            
-            // Draw button text
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(
-            this.scrapModeButton.text,
-            this.scrapModeButton.x + this.scrapModeButton.width / 2,
-            this.scrapModeButton.y + this.scrapModeButton.height / 2
-        );
     }
 
     // Draw the grid with low opacity

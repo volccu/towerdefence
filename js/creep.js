@@ -247,29 +247,6 @@ class Creep {
             ctx.fill();
         }
         
-        // Draw boss indicators (spikes or crown) if it's a boss
-        if (this.isBoss) {
-            ctx.strokeStyle = '#FFFF00';
-            ctx.lineWidth = 2;
-            
-            // Draw spikes or crown around the creep
-            const spikes = 8; // Number of spikes
-            const spikeLength = this.radius * 0.5;
-            
-            for (let i = 0; i < spikes; i++) {
-                const angle = (i / spikes) * Math.PI * 2;
-                const startX = this.x + Math.cos(angle) * this.radius;
-                const startY = this.y + Math.sin(angle) * this.radius;
-                const endX = this.x + Math.cos(angle) * (this.radius + spikeLength);
-                const endY = this.y + Math.sin(angle) * (this.radius + spikeLength);
-                
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
-            }
-        }
-        
         // Draw health bar only if damaged or boss
         if (this.isDamaged || this.isBoss) {
             const healthBarWidth = this.radius * 2;
