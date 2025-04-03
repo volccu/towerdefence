@@ -68,141 +68,142 @@ class Projectile {
 }
 
 class Tower {
-    constructor(game, gridX, gridY, towerType) {
+    constructor(game, gridX, gridY, type) {
         this.game = game;
         this.gridX = gridX;
         this.gridY = gridY;
         this.x = gridX * game.grid.cellSize;
-        this.y = gridY * game.grid.cellSize + game.gameArea.y;
-        this.width = game.grid.cellSize * 2;  // 2x2 grid cells
+        this.y = gridY * game.grid.cellSize;
+        this.width = game.grid.cellSize * 2;
         this.height = game.grid.cellSize * 2;
+        this.type = type;
+        this.color = type.color;
+        this.strokeColor = type.strokeColor;
+        this.damage = type.damage;
+        this.range = type.range;
+        this.fireRate = type.fireRate;
+        this.lastFireTime = 0;
+        this.cost = type.cost;
+        this.isWall = type.name === "Wall";
+        this.isScrapper = type.name === "Scrapper";
+        this.projectiles = [];
         
-        // Apply tower type properties
-        this.name = towerType.name;
-        this.range = towerType.range;
-        this.damage = towerType.damage;
-        this.fireRate = towerType.fireRate;
-        this.color = towerType.color;
-        this.strokeColor = towerType.strokeColor;
-        this.cost = towerType.cost;
-        this.isWall = false; // Default value
-        this.isScrapper = towerType.isScrapper || false;
-        
-        // Scrapper specific properties
         if (this.isScrapper) {
-            this.scrapRate = towerType.scrapRate;
-            this.scrapInterval = towerType.scrapInterval;
+            this.scrapRate = type.scrapRate;
+            this.scrapInterval = type.scrapInterval;
             this.lastScrapTime = 0;
         }
-        
-        this.lastFireTime = 0;
-        this.projectiles = [];
     }
 
     update(currentTime) {
+        if (this.isWall || this.isScrapper) return;
+        
         // Update projectiles
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             const projectile = this.projectiles[i];
-            projectile.update();
             
-            // Remove inactive projectiles
-            if (!projectile.isActive) {
-                this.projectiles.splice(i, 1);
-            }
-        }
-
-        // Check if we can fire again (only for non-scrapper towers)
-        if (!this.isScrapper && currentTime - this.lastFireTime >= 1000 / this.fireRate) {
-            this.findTargetAndShoot(currentTime);
-        }
-    }
-
-    findTargetAndShoot(currentTime) {
-        // Find nearest enemy within range
-        let nearestCreep = null;
-        let shortestDistance = this.range;
-
-        const towerCenterX = this.x + this.width / 2 + this.game.gameArea.x;
-        const towerCenterY = this.y + this.height / 2;
-
-        for (const creep of this.game.creeps) {
-            if (!creep.isAlive) continue;
-
-            const dx = creep.x - towerCenterX;
-            const dy = creep.y - towerCenterY;
+            // Move projectile towards target
+            const dx = projectile.targetX - projectile.x;
+            const dy = projectile.targetY - projectile.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < shortestDistance) {
-                shortestDistance = distance;
-                nearestCreep = creep;
+            
+            if (distance < 5) {
+                // Projectile hit target
+                if (projectile.target.isAlive) {
+                    projectile.target.takeDamage(this.damage);
+                }
+                this.projectiles.splice(i, 1);
+            } else {
+                // Move projectile
+                const speed = 10;
+                const vx = (dx / distance) * speed;
+                const vy = (dy / distance) * speed;
+                projectile.x += vx;
+                projectile.y += vy;
             }
         }
-
-        // If target found, shoot at it
-        if (nearestCreep) {
-            this.shoot(nearestCreep, currentTime);
+        
+        // Check if tower can fire
+        if (currentTime - this.lastFireTime >= 1000 / this.fireRate) {
+            // Find closest creep in range
+            let closestCreep = null;
+            let closestDistance = this.range;
+            
+            for (const creep of this.game.creeps) {
+                if (!creep.isAlive) continue;
+                
+                const dx = creep.x - (this.x + this.width / 2);
+                const dy = creep.y - (this.y + this.height / 2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance <= this.range && (!closestCreep || distance < closestDistance)) {
+                    closestCreep = creep;
+                    closestDistance = distance;
+                }
+            }
+            
+            // Fire at closest creep
+            if (closestCreep) {
+                this.fireAt(closestCreep);
+                this.lastFireTime = currentTime;
+            }
         }
     }
 
-    shoot(targetCreep, currentTime) {
-        const towerCenterX = this.x + this.width / 2 + this.game.gameArea.x;
-        const towerCenterY = this.y + this.height / 2;
-        
+    fireAt(target) {
         // Create new projectile
-        const projectile = new Projectile(
-            towerCenterX,
-            towerCenterY,
-            targetCreep,
-            this.damage
-        );
+        const projectile = {
+            x: this.x + this.width / 2,
+            y: this.y + this.height / 2,
+            targetX: target.x,
+            targetY: target.y,
+            target: target
+        };
         
         this.projectiles.push(projectile);
-        this.lastFireTime = currentTime;
     }
 
     draw(ctx) {
-        // Calculate position with offset
-        const drawX = this.x + this.game.gameArea.x;
-        
-        // Käytä oikeaa kuvaa tornin tyypin mukaan
-        if (this.game.assets && this.game.assets.isReady()) {
-            let img;
-            if (this.isScrapper) {
-                img = this.game.assets.getImage('scrapper');
-            } else if (this.isWall) {
-                img = this.game.assets.getImage('wall');
+        if (this.isWall) {
+            // Draw wall
+            if (this.game.assets.isReady()) {
+                const img = this.game.assets.getImage('wall');
+                this.game.drawImageMaintainAspectRatio(
+                    img,
+                    this.x + this.game.gameArea.x,
+                    this.y,
+                    this.game.grid.cellSize,
+                    this.game.grid.cellSize
+                );
             } else {
-                img = this.game.assets.getImage('tower');
+                ctx.fillStyle = this.color;
+                ctx.fillRect(
+                    this.x + this.game.gameArea.x,
+                    this.y,
+                    this.game.grid.cellSize,
+                    this.game.grid.cellSize
+                );
             }
-            ctx.drawImage(img, drawX, this.y, this.width, this.height);
-        } else {
-            // Fallback jos kuva ei ole vielä latautunut
-            ctx.fillStyle = this.color;
-            ctx.fillRect(drawX, this.y, this.width, this.height);
-            
-            ctx.strokeStyle = this.strokeColor;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(drawX, this.y, this.width, this.height);
-        }
-
-        // Draw range (visible only in debug mode)
-        if (this.game.debugMode) {
-            ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(
-                drawX + this.width / 2,
-                this.y + this.height / 2,
-                this.range,
-                0,
-                Math.PI * 2
-            );
-            ctx.stroke();
-        }
-
-        // Draw projectiles
-        for (const projectile of this.projectiles) {
-            projectile.draw(ctx);
+        } else if (this.isScrapper) {
+            // Draw scrapper
+            if (this.game.assets.isReady()) {
+                const img = this.game.assets.getImage('scrapper');
+                this.game.drawImageMaintainAspectRatio(
+                    img,
+                    this.x + this.game.gameArea.x,
+                    this.y,
+                    this.width,
+                    this.height
+                );
+            } else {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(
+                    this.x + this.game.gameArea.x,
+                    this.y,
+                    this.width,
+                    this.height
+                );
+            }
         }
     }
 }

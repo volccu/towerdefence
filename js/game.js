@@ -36,6 +36,30 @@ class Game {
         this.startGame();
     }
 
+    // Helper function to draw images with preserved aspect ratio
+    drawImageMaintainAspectRatio(img, x, y, targetWidth, targetHeight, centerX = true, centerY = false) {
+        const aspectRatio = img.width / img.height;
+        let width, height;
+        
+        if (targetWidth / targetHeight > aspectRatio) {
+            // Target area is wider than image aspect
+            height = targetHeight;
+            width = targetHeight * aspectRatio;
+        } else {
+            // Target area is taller than image aspect
+            width = targetWidth;
+            height = targetWidth / aspectRatio;
+        }
+        
+        // Center the image if requested
+        const drawX = centerX ? x + (targetWidth - width) / 2 : x;
+        const drawY = centerY ? y + (targetHeight - height) / 2 : y;
+        
+        this.ctx.drawImage(img, drawX, drawY, width, height);
+        
+        return { width, height }; // Return actual dimensions used
+    }
+
     initialize() {
         // Canvas & context
         this.canvas = document.getElementById('gameCanvas');
@@ -54,36 +78,37 @@ class Game {
         this.assets.loadImage('spawn', 'assets/spawn.png');
         this.assets.loadImage('base', 'assets/base.png');
         this.assets.loadImage('button', 'assets/button.png');
+        this.assets.loadImage('button2', 'assets/button2.png'); // Lisätään uusi button2 kuva
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
         
         // Canvas size - wider to accommodate UI panels
-        this.canvas.width = 900 * this.scaleFactor;
+        this.canvas.width = 800 * this.scaleFactor; // Kavennettu 900 -> 800
         this.canvas.height = 800 * this.scaleFactor;
         
         // Stats panel on top
         this.statsPanel = {
             x: 0,
             y: 0,
-            width: 900 * this.scaleFactor,
+            width: 800 * this.scaleFactor, // Kavennettu 900 -> 800
             height: 0 // Poistetaan stats paneeli kokonaan
         };
         
         // Game area definition (now at top)
         this.gameArea = {
             x: 0,
-            y: 0, // Siirretään ylös
+            y: 0,
             width: 600 * this.scaleFactor,
-            height: 800 * this.scaleFactor // Kasvatetaan korkeutta
+            height: 800 * this.scaleFactor
         };
         
         // UI panel on right side
         this.uiPanel = {
             x: 600 * this.scaleFactor,
-            y: 0, // Siirretään ylös
-            width: 300 * this.scaleFactor,
-            height: 800 * this.scaleFactor // Kasvatetaan korkeutta
+            y: 0,
+            width: 200 * this.scaleFactor, // Kavennettu 300 -> 200
+            height: 800 * this.scaleFactor
         };
         
         // Grid (small cells)
@@ -178,7 +203,7 @@ class Game {
         // Spawn and home indicators
         this.spawnPoint = {
             x: this.gameArea.x + this.gameArea.width / 2,
-            y: this.gameArea.y, // Takaisin alkuperäiseen sijaintiin
+            y: this.gameArea.y + 40 * this.scaleFactor, // Siirretään kaksi celliä alaspäin
             radius: 20 * this.scaleFactor,
             color: "#FF9900"
         };
@@ -204,17 +229,17 @@ class Game {
         
         // UI Buttons (now in UI panel)
         this.nextWaveButton = {
-            x: this.uiPanel.x + 20 * this.scaleFactor,
-            y: this.uiPanel.y + 500 * this.scaleFactor,
-            width: 120 * this.scaleFactor,
+            x: this.uiPanel.x + 10 * this.scaleFactor, // Pienennetty padding 20 -> 10
+            y: this.uiPanel.y + this.uiPanel.height - 60 * this.scaleFactor,
+            width: 85 * this.scaleFactor, // Kavennettu 120 -> 85
             height: 40 * this.scaleFactor,
             text: "NEXT WAVE"
         };
         
         this.scrapModeButton = {
-            x: this.uiPanel.x + 160 * this.scaleFactor,
-            y: this.uiPanel.y + 500 * this.scaleFactor,
-            width: 120 * this.scaleFactor,
+            x: this.uiPanel.x + 105 * this.scaleFactor, // Päivitetty sijainti
+            y: this.uiPanel.y + this.uiPanel.height - 60 * this.scaleFactor,
+            width: 85 * this.scaleFactor, // Kavennettu 120 -> 85
             height: 40 * this.scaleFactor,
             text: "SCRAP",
             active: false
@@ -355,9 +380,9 @@ class Game {
             // Check if click hit tower selection buttons
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
-                    x: this.uiPanel.x + 20 * this.scaleFactor,
+                    x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
                     y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                    width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                    width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
                     height: 80 * this.scaleFactor
                 };
                 
@@ -461,9 +486,9 @@ class Game {
             if (!isOverButton) {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
-                        x: this.uiPanel.x + 20 * this.scaleFactor,
+                        x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
                         y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                        width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                        width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
                         height: 80 * this.scaleFactor
                     };
                     
@@ -1077,12 +1102,14 @@ class Game {
         if (this.assets.isReady()) {
             const spawnImg = this.assets.getImage('spawn');
             const spawnSize = this.spawnPoint.radius * 2;
-            this.ctx.drawImage(
+            this.drawImageMaintainAspectRatio(
                 spawnImg,
                 this.spawnPoint.x - spawnSize / 2,
                 this.spawnPoint.y - spawnSize / 2,
                 spawnSize,
-                spawnSize
+                spawnSize,
+                true,
+                true
             );
         } else {
             // Fallback to circle if image not loaded
@@ -1182,7 +1209,47 @@ class Game {
         
         // Draw towers
         for (const tower of this.towers) {
-            tower.draw(this.ctx);
+            if (tower.isWall) {
+                // Seinät piirretään normaalisti
+                tower.draw(this.ctx);
+            } else if (tower.isScrapper) {
+                // Scrapperit piirretään normaalisti
+                tower.draw(this.ctx);
+            } else {
+                // Tornit piirretään säilyttäen kuvasuhde
+                const x = tower.x + this.gameArea.x;
+                const y = tower.y;
+                
+                if (this.assets.isReady()) {
+                    const img = this.assets.getImage('tower');
+                    const aspectRatio = img.width / img.height;
+                    const targetHeight = tower.height;
+                    const targetWidth = targetHeight * aspectRatio;
+                    const centerX = x + (tower.width - targetWidth) / 2; // Keskitetään horisontaalisesti
+                    
+                    this.ctx.drawImage(img, centerX, y, targetWidth, targetHeight);
+                } else {
+                    // Fallback jos kuva ei ole latautunut
+                    this.ctx.fillStyle = tower.color;
+                    this.ctx.fillRect(x, y, tower.width, tower.height);
+                }
+
+                // Piirrä tornin projectilet
+                if (tower.projectiles) {
+                    for (const projectile of tower.projectiles) {
+                        this.ctx.fillStyle = '#FFF';
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            projectile.x + this.gameArea.x,
+                            projectile.y,
+                            3 * this.scaleFactor,
+                            0,
+                            Math.PI * 2
+                        );
+                        this.ctx.fill();
+                    }
+                }
+            }
         }
         
         // Highlight selected tower and show its range
@@ -1447,7 +1514,7 @@ class Game {
         this.ctx.fillText(`SCRAPS: ${this.scraps}`, this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
         
         this.ctx.fillStyle = '#FFF';
-        this.ctx.fillText(`WAVE: ${this.waveNumber}`, this.uiPanel.x + 200 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
+        this.ctx.fillText(`WAVE: ${this.waveNumber}`, this.uiPanel.x + 120 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
         
         // Tower shop section
         this.ctx.font = 'bold 20px Arial';
@@ -1459,28 +1526,61 @@ class Game {
         for (let i = 0; i < this.towerTypes.length; i++) {
             const tower = this.towerTypes[i];
             const buttonRect = {
-                x: this.uiPanel.x + 20 * this.scaleFactor,
+                x: this.uiPanel.x + 15 * this.scaleFactor, // Lisätty padding vasemmalle
                 y: this.uiPanel.y + 100 * this.scaleFactor + i * 100 * this.scaleFactor,
-                width: this.uiPanel.width * this.scaleFactor - 40 * this.scaleFactor,
+                width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor, // Vähennetty leveyttä molemmilta puolilta
                 height: 80 * this.scaleFactor
             };
             
-            // Draw button background
-            this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
-            this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+            // Draw button background with button2 image
+            if (this.assets.isReady()) {
+                const buttonImg = this.assets.getImage('button2');
+                const padding = 10 * this.scaleFactor;
+                this.drawImageMaintainAspectRatio(
+                    buttonImg,
+                    buttonRect.x - padding,
+                    buttonRect.y,
+                    buttonRect.width + padding * 2,
+                    buttonRect.height,
+                    false
+                );
+            } else {
+                // Fallback to colored rectangle if image not loaded
+                this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
+                this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+            }
             
             // Draw tower sprite
             if (this.assets.isReady()) {
                 let img;
                 if (tower.name === "Wall") {
                     img = this.assets.getImage('wall');
-                    this.ctx.drawImage(img, buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
+                    this.drawImageMaintainAspectRatio(
+                        img,
+                        buttonRect.x + 25 * this.scaleFactor,
+                        buttonRect.y + 30 * this.scaleFactor,
+                        20 * this.scaleFactor,
+                        20 * this.scaleFactor
+                    );
                 } else if (tower.name === "Scrapper") {
                     img = this.assets.getImage('scrapper');
-                    this.ctx.drawImage(img, buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
+                    this.drawImageMaintainAspectRatio(
+                        img,
+                        buttonRect.x + 15 * this.scaleFactor,
+                        buttonRect.y + 15 * this.scaleFactor,
+                        50 * this.scaleFactor,
+                        50 * this.scaleFactor
+                    );
                 } else {
                     img = this.assets.getImage('tower');
-                    this.ctx.drawImage(img, buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
+                    this.drawImageMaintainAspectRatio(
+                        img,
+                        buttonRect.x + 15 * this.scaleFactor,
+                        buttonRect.y + 15 * this.scaleFactor,
+                        50 * this.scaleFactor,
+                        50 * this.scaleFactor,
+                        true
+                    );
                 }
             } else {
                 // Fallback to colored rectangles if images not loaded
@@ -1547,7 +1647,7 @@ class Game {
         if (this.assets.isReady()) {
             const buttonImg = this.assets.getImage('button');
             this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
-            this.ctx.drawImage(
+            this.drawImageMaintainAspectRatio(
                 buttonImg,
                 this.nextWaveButton.x,
                 this.nextWaveButton.y,
@@ -1582,11 +1682,11 @@ class Game {
         // Draw button background with image
         if (this.assets.isReady()) {
             const buttonImg = this.assets.getImage('button');
-            this.ctx.drawImage(
+            this.drawImageMaintainAspectRatio(
                 buttonImg,
                 this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
+                this.scrapModeButton.y,
+                this.scrapModeButton.width,
                 this.scrapModeButton.height
             );
             
