@@ -158,13 +158,13 @@ class Grid {
             for (let x = 0; x < this.cols; x++) {
                 const cell = this.cells[y][x];
                 if (cell.occupied && !cell.isObstacle) {
-                    ctx.fillStyle = 'rgba(100, 100, 100, 0.3)';
-                    ctx.fillRect(
-                        x * this.cellSize + this.offsetX,
-                        y * this.cellSize + this.game.gameArea.y,
-                        this.cellSize,
-                        this.cellSize
-                    );
+                    // ctx.fillStyle = 'rgba(100, 100, 100, 0.3)'; // Poistettu tornien taustaväri
+                    // ctx.fillRect( // Poistettu tornien taustalaatikon piirto
+                    //     x * this.cellSize + this.offsetX,
+                    //     y * this.cellSize + this.game.gameArea.y,
+                    //     this.cellSize,
+                    //     this.cellSize
+                    // );
                 }
             }
         }
