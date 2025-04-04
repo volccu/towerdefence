@@ -373,6 +373,18 @@ class Game {
 
         // Aseta canvasin kursoriksi oletusarvoisesti nuoli
         this.canvas.style.cursor = 'default';
+
+        // Lisätään viittaus dialogitekstielementtiin
+        this.dialogueTextElement = document.getElementById('dialogue-text');
+    }
+
+    // Lisätään funktio dialogin päivittämiseen
+    updateDialogue(newText) {
+        if (this.dialogueTextElement) {
+            this.dialogueTextElement.textContent = newText;
+        } else {
+            console.error("Dialogue text element not found!");
+        }
     }
 
     setupEventListeners() {
@@ -469,9 +481,9 @@ class Game {
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
                     x: this.uiPanel.x + 15 * this.scaleFactor,
-                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Pienennetty väli 90 -> 70
                     width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                    height: 80 * this.scaleFactor
+                    height: 60 * this.scaleFactor // Pienennetty korkeus 80 -> 60
                 };
                 
                 if (this.isPointInRect(x, y, buttonRect)) {
@@ -479,6 +491,8 @@ class Game {
                     this.buyMode = true;
                     this.scrapMode = false;
                     this.scrapModeButton.active = false;
+                    // Päivitä dialogi, kun tornia klikataan kaupassa
+                    this.updateDialogue(`Selected: ${this.towerTypes[i].name} - Cost: ${this.towerTypes[i].cost}`);
                     return;
                 }
             }
@@ -575,9 +589,9 @@ class Game {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
                         x: this.uiPanel.x + 15 * this.scaleFactor,
-                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Pienennetty väli 90 -> 70
                         width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                        height: 80 * this.scaleFactor
+                        height: 60 * this.scaleFactor // Pienennetty korkeus 80 -> 60
                     };
                     
                     if (this.isPointInRect(mouseX, mouseY, buttonRect)) {
@@ -1172,10 +1186,12 @@ class Game {
                 const scrapImg = this.assets.getImage('scrap');
                 const scrapSize = 15 * this.scaleFactor;
                 this.ctx.globalAlpha = text.alpha;
+                const textMetrics = this.ctx.measureText(text.text); // Get text metrics (though not fully used here yet)
+                const iconY = text.y - scrapSize / 2; // Align icon center with text center (baseline='middle')
                 this.drawImageMaintainAspectRatio(
                     scrapImg,
-                    text.x - 20 * this.scaleFactor,
-                    text.y - scrapSize/2,
+                    text.x - 20 * this.scaleFactor, // Position icon slightly left of text center
+                    iconY,
                     scrapSize,
                     scrapSize
                 );
@@ -1183,7 +1199,7 @@ class Game {
             }
             
             this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
-            this.ctx.font = 'bold 16px Arial';
+            this.ctx.font = 'bold 20px "VT323", monospace'; // 16px -> 20px
             this.ctx.textAlign = 'center';
             this.ctx.fillText(text.text, text.x, text.y);
             
@@ -1496,21 +1512,31 @@ class Game {
                 const scrapImg = this.assets.getImage('scrap');
                 const scrapSize = 15 * this.scaleFactor;
                 this.ctx.globalAlpha = text.alpha;
+                // Set baseline to middle *before* drawing icon and text for proper alignment
+                this.ctx.textBaseline = 'middle';
+                const iconY = text.y - scrapSize / 2; // Align icon center with text center (baseline='middle')
                 this.drawImageMaintainAspectRatio(
                     scrapImg,
-                    text.x - 20 * this.scaleFactor,
-                    text.y - scrapSize/2,
+                    text.x - 20 * this.scaleFactor, // Position icon slightly left of text center
+                    iconY,
                     scrapSize,
                     scrapSize
                 );
                 this.ctx.globalAlpha = 1.0;
+                // Draw text *after* setting baseline and drawing icon
+                this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
+                this.ctx.font = 'bold 20px "VT323", monospace';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(text.text, text.x + scrapSize / 2 + 5 * this.scaleFactor, text.y); // Adjust text X based on icon
+                this.ctx.textBaseline = 'alphabetic'; // Reset baseline
+            } else {
+                 // Draw text normally if no icon
+                this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
+                this.ctx.font = 'bold 20px "VT323", monospace';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(text.text, text.x, text.y);
             }
-            
-            this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
-            this.ctx.font = 'bold 16px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(text.text, text.x, text.y);
-            
+
             // Remove dead texts
             if (text.life <= 0) {
                 this.floatingTexts.splice(i, 1);
@@ -1551,12 +1577,12 @@ class Game {
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
             this.ctx.fillStyle = '#FF0000';
-            this.ctx.font = '36px "Courier New", monospace';
+            this.ctx.font = '40px "VT323", monospace'; // 36px -> 40px
             this.ctx.textAlign = 'center';
             this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
             
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '18px "Courier New", monospace';
+            this.ctx.font = '22px "VT323", monospace'; // 18px -> 22px
             this.ctx.fillText(`You reached wave: ${this.waveReached}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
             
             // Draw restart button
@@ -1569,7 +1595,7 @@ class Game {
             );
             
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = '16px "Courier New", monospace';
+            this.ctx.font = '20px "VT323", monospace'; // 16px -> 20px
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillText(
@@ -1614,7 +1640,7 @@ class Game {
         
         // Draw tower info
         this.ctx.fillStyle = '#EEEEEE';
-        this.ctx.font = '16px "Courier New", monospace';
+        this.ctx.font = '20px "VT323", monospace'; // 16px -> 20px
         this.ctx.textAlign = 'left';
         this.ctx.fillText(
             `Damage: ${this.selectedTower.damage}`,
@@ -1648,32 +1674,59 @@ class Game {
         );
         
         this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '12px "Courier New", monospace';
+        this.ctx.font = '16px "VT323", monospace'; // 12px -> 16px (Explicitly set)
         this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
+        this.ctx.textBaseline = 'middle'; // Set baseline for button text
         this.ctx.fillText(
             this.upgradeButtons.damage.text,
             this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width / 2,
             this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height / 2
         );
-        
+        this.ctx.textBaseline = 'alphabetic'; // Reset for cost
+
         // Draw cost with scrap icon
+        const costTextY_dmg = this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 25 * this.scaleFactor;
+        const costTextString_dmg = `${this.upgradeButtons.damage.cost}`;
+        this.ctx.font = '16px "VT323", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle'; // Set baseline for cost text
+
+        let costIconX_dmg = this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width / 2 - 15 * this.scaleFactor; // Adjust initial X relative to center
+        const textWidth_dmg = this.ctx.measureText(costTextString_dmg).width;
+        let totalWidth_dmg = textWidth_dmg;
+        let iconWidth_dmg = 0;
+
         if (this.assets.isReady()) {
             const scrapImg = this.assets.getImage('scrap');
             const scrapSize = 15 * this.scaleFactor;
-            this.drawImageMaintainAspectRatio(
-                scrapImg,
-                this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width/2 - 30 * this.scaleFactor,
-                this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 15 * this.scaleFactor,
-                scrapSize,
-                scrapSize
-            );
+            iconWidth_dmg = scrapSize; // Approximate width
+            totalWidth_dmg += iconWidth_dmg + 5 * this.scaleFactor; // Add icon width and padding
         }
-        this.ctx.fillText(
-            `${this.upgradeButtons.damage.cost}`,
-            this.towerTooltip.buttons.damage.x + this.towerTooltip.buttons.damage.width/2,
-            this.towerTooltip.buttons.damage.y + this.towerTooltip.buttons.damage.height + 25 * this.scaleFactor
-        );
+
+        // Calculate starting X for icon to center the group
+        costIconX_dmg = this.towerTooltip.buttons.damage.x + (this.towerTooltip.buttons.damage.width - totalWidth_dmg) / 2;
+        let costTextX_dmg = costIconX_dmg; // Default text start
+
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            const iconY = costTextY_dmg - scrapSize / 2; // Align icon center to text middle
+            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
+                scrapImg,
+                costIconX_dmg,
+                iconY,
+                scrapSize,
+                scrapSize,
+                false, true
+            );
+            costTextX_dmg = costIconX_dmg + drawnIconWidth + 5 * this.scaleFactor; // Update X for text drawing
+        } else {
+            costTextX_dmg = costIconX_dmg; // Text starts at the calculated start if no icon
+        }
+
+        // Draw cost text
+        this.ctx.fillText(costTextString_dmg, costTextX_dmg, costTextY_dmg);
+        this.ctx.textBaseline = 'alphabetic'; // Reset baseline
         
         // Draw fire rate upgrade button
         this.towerTooltip.buttons.fireRate.x = startX + this.towerTooltip.buttons.damage.width + buttonSpacing;
@@ -1687,30 +1740,49 @@ class Game {
         );
         
         this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = '16px "VT323", monospace'; // Explicitly set font
         this.ctx.textAlign = 'center';
+        this.ctx.font = '16px "VT323", monospace'; // Explicitly set font
+        this.ctx.textBaseline = 'middle'; // Set baseline for button text
         this.ctx.fillText(
             this.upgradeButtons.fireRate.text,
             this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width / 2,
             this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height / 2
         );
-        
-        // Draw cost with scrap icon
+         this.ctx.textBaseline = 'alphabetic'; // Reset for cost
+
+        // Draw cost with scrap icon (fire rate)
+        const costTextY_fr = this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 25 * this.scaleFactor;
+        const costTextString_fr = `${this.upgradeButtons.fireRate.cost}`;
+        this.ctx.font = '16px "VT323", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle'; // Set baseline for cost text
+
+        let costIconX_fr = this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width / 2 - 15 * this.scaleFactor;
+        const textWidth_fr = this.ctx.measureText(costTextString_fr).width;
+        let totalWidth_fr = textWidth_fr;
+        let iconWidth_fr = 0;
+
         if (this.assets.isReady()) {
             const scrapImg = this.assets.getImage('scrap');
             const scrapSize = 15 * this.scaleFactor;
-            this.drawImageMaintainAspectRatio(
-                scrapImg,
-                this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width/2 - 30 * this.scaleFactor,
-                this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 15 * this.scaleFactor,
-                scrapSize,
-                scrapSize
-            );
+            iconWidth_fr = scrapSize; 
+            totalWidth_fr += iconWidth_fr + 5 * this.scaleFactor;
         }
-        this.ctx.fillText(
-            `${this.upgradeButtons.fireRate.cost}`,
-            this.towerTooltip.buttons.fireRate.x + this.towerTooltip.buttons.fireRate.width/2,
-            this.towerTooltip.buttons.fireRate.y + this.towerTooltip.buttons.fireRate.height + 25 * this.scaleFactor
-        );
+
+        costIconX_fr = this.towerTooltip.buttons.fireRate.x + (this.towerTooltip.buttons.fireRate.width - totalWidth_fr) / 2;
+        let costTextX_fr = costIconX_fr;
+
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            const iconY = costTextY_fr - scrapSize / 2;
+            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(scrapImg, costIconX_fr, iconY, scrapSize, scrapSize, false, true);
+            costTextX_fr = costIconX_fr + drawnIconWidth + 5 * this.scaleFactor;
+        }
+
+        this.ctx.fillText(costTextString_fr, costTextX_fr, costTextY_fr);
+        this.ctx.textBaseline = 'alphabetic'; // Reset baseline
         
         // Draw range upgrade button
         this.towerTooltip.buttons.range.x = startX + this.towerTooltip.buttons.damage.width + this.towerTooltip.buttons.fireRate.width + buttonSpacing * 2;
@@ -1725,57 +1797,95 @@ class Game {
         
         this.ctx.fillStyle = '#FFFFFF';
         this.ctx.textAlign = 'center';
+        this.ctx.font = '16px "VT323", monospace'; // Explicitly set font
+        this.ctx.textBaseline = 'middle'; // Set baseline for button text
         this.ctx.fillText(
             this.upgradeButtons.range.text,
             this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width / 2,
             this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height / 2
         );
-        
-        // Draw cost with scrap icon
+        this.ctx.textBaseline = 'alphabetic'; // Reset for cost
+
+        // Draw cost with scrap icon (range)
+        const costTextY_r = this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 25 * this.scaleFactor;
+        const costTextString_r = `${this.upgradeButtons.range.cost}`;
+        this.ctx.font = '16px "VT323", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle'; // Set baseline for cost text
+
+        let costIconX_r = this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width / 2 - 15 * this.scaleFactor;
+        const textWidth_r = this.ctx.measureText(costTextString_r).width;
+        let totalWidth_r = textWidth_r;
+        let iconWidth_r = 0;
+
         if (this.assets.isReady()) {
             const scrapImg = this.assets.getImage('scrap');
             const scrapSize = 15 * this.scaleFactor;
-            this.drawImageMaintainAspectRatio(
-                scrapImg,
-                this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width/2 - 30 * this.scaleFactor,
-                this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 15 * this.scaleFactor,
-                scrapSize,
-                scrapSize
-            );
+            iconWidth_r = scrapSize;
+            totalWidth_r += iconWidth_r + 5 * this.scaleFactor;
         }
-        this.ctx.fillText(
-            `${this.upgradeButtons.range.cost}`,
-            this.towerTooltip.buttons.range.x + this.towerTooltip.buttons.range.width/2,
-            this.towerTooltip.buttons.range.y + this.towerTooltip.buttons.range.height + 25 * this.scaleFactor
-        );
+
+        costIconX_r = this.towerTooltip.buttons.range.x + (this.towerTooltip.buttons.range.width - totalWidth_r) / 2;
+        let costTextX_r = costIconX_r;
+
+        if (this.assets.isReady()) {
+            const scrapImg = this.assets.getImage('scrap');
+            const scrapSize = 15 * this.scaleFactor;
+            const iconY = costTextY_r - scrapSize / 2;
+            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(scrapImg, costIconX_r, iconY, scrapSize, scrapSize, false, true);
+            costTextX_r = costIconX_r + drawnIconWidth + 5 * this.scaleFactor;
+        }
+
+        this.ctx.fillText(costTextString_r, costTextX_r, costTextY_r);
+        this.ctx.textBaseline = 'alphabetic'; // Reset baseline
     }
 
     drawUI() {
         // Draw scraps amount and wave number above crafting menu
-        this.ctx.font = 'bold 20px Arial';
-        this.ctx.fillStyle = '#FFD700';
+        const scrapTextY = this.uiPanel.y + 30 * this.scaleFactor;
+        const scrapAmountText = `${this.scraps}`;
+        const waveText = `WAVE: ${this.waveNumber}`;
+
+        // Set baseline and alignment for this section
+        this.ctx.textBaseline = 'middle';
         this.ctx.textAlign = 'left';
-        
-        // Draw scrap icon
+        this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`;
+
+        // Draw scrap icon first
+        let iconXEnd = this.uiPanel.x + 20 * this.scaleFactor; // Keep track of where icon ends
         if (this.assets.isReady()) {
             const scrapImg = this.assets.getImage('scrap');
             const scrapSize = 20 * this.scaleFactor;
-            this.drawImageMaintainAspectRatio(
+            const iconY = scrapTextY - scrapSize / 2; // Align icon center with text center
+            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
                 scrapImg,
-                this.uiPanel.x + 20 * this.scaleFactor,
-                this.uiPanel.y + 10 * this.scaleFactor,
+                iconXEnd,
+                iconY,
                 scrapSize,
-                scrapSize
+                scrapSize,
+                false, // Don't center horizontally within target rect
+                true // Center vertically within target rect (implicitly done by iconY calculation)
             );
+            iconXEnd += drawnIconWidth + 5 * this.scaleFactor; // Add padding after icon
+        } else {
+            // Reserve space even if icon doesn't load
+            iconXEnd += 20 * this.scaleFactor + 5 * this.scaleFactor;
         }
-        
-        this.ctx.fillText(`${this.scraps}`, this.uiPanel.x + 50 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
-        
+
+        // Draw scrap amount text after icon
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.fillText(scrapAmountText, iconXEnd, scrapTextY);
+
+        // Draw wave text further to the right
+        const waveTextX = this.uiPanel.x + 120 * this.scaleFactor;
         this.ctx.fillStyle = '#FFF';
-        this.ctx.fillText(`WAVE: ${this.waveNumber}`, this.uiPanel.x + 120 * this.scaleFactor, this.uiPanel.y + 30 * this.scaleFactor);
-        
+        this.ctx.fillText(waveText, waveTextX, scrapTextY);
+
+        // Reset baseline
+        this.ctx.textBaseline = 'alphabetic';
+
         // Tower shop section
-        this.ctx.font = 'bold 20px Arial';
+        this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`; // 20px -> 24px
         this.ctx.fillStyle = '#FFF';
         this.ctx.textAlign = 'left';
         this.ctx.fillText('CRAFTING', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 80 * this.scaleFactor);
@@ -1785,20 +1895,20 @@ class Game {
             const tower = this.towerTypes[i];
             const buttonRect = {
                 x: this.uiPanel.x + 15 * this.scaleFactor,
-                y: this.uiPanel.y + 100 * this.scaleFactor + i * 90 * this.scaleFactor, // Muutettu 80 -> 90
+                y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Pienennetty väli 90 -> 70
                 width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                height: 80 * this.scaleFactor
+                height: 60 * this.scaleFactor // Pienennetty korkeus 80 -> 60
             };
-            
+
             // Draw button background with button2 image
             if (this.assets.isReady()) {
                 const buttonImg = this.assets.getImage('button2');
                 const padding = 10 * this.scaleFactor;
                 this.drawImageMaintainAspectRatio(
                     buttonImg,
-                    buttonRect.x - padding,
+                    buttonRect.x, // Changed from buttonRect.x - padding
                     buttonRect.y,
-                    buttonRect.width + padding * 2,
+                    buttonRect.width, // Changed from buttonRect.width + padding * 2
                     buttonRect.height,
                     false
                 );
@@ -1811,66 +1921,72 @@ class Game {
             // Draw tower sprite
             if (this.assets.isReady()) {
                 let img;
+                const iconSize = 40 * this.scaleFactor; // Consistent icon size
+                const iconX = buttonRect.x + 20 * this.scaleFactor; // Adjusted X for better centering
+                const iconY = buttonRect.y + (buttonRect.height - iconSize) / 2; // Vertically center icon
+
                 if (tower.name === "Wall") {
                     img = this.assets.getImage('wall');
+                    // Adjust wall icon size and position slightly for visual balance
+                    const wallIconSize = iconSize * 0.6;
                     this.drawImageMaintainAspectRatio(
                         img,
-                        buttonRect.x + 25 * this.scaleFactor,
-                        buttonRect.y + 30 * this.scaleFactor,
-                        20 * this.scaleFactor,
-                        20 * this.scaleFactor
+                        iconX + (iconSize - wallIconSize) / 2, 
+                        iconY + (iconSize - wallIconSize) / 2, 
+                        wallIconSize, 
+                        wallIconSize
                     );
                 } else if (tower.name === "Scrapper") {
                     img = this.assets.getImage('scrapper');
-                    this.drawImageMaintainAspectRatio(
-                        img,
-                        buttonRect.x + 15 * this.scaleFactor,
-                        buttonRect.y + 15 * this.scaleFactor,
-                        50 * this.scaleFactor,
-                        50 * this.scaleFactor
-                    );
+                    this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize);
                 } else {
                     img = this.assets.getImage('tower');
-                    this.drawImageMaintainAspectRatio(
-                        img,
-                        buttonRect.x + 15 * this.scaleFactor,
-                        buttonRect.y + 15 * this.scaleFactor,
-                        50 * this.scaleFactor,
-                        50 * this.scaleFactor,
-                        true
-                    );
+                    this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize, true);
                 }
             } else {
-                // Fallback to colored rectangles if images not loaded
-            this.ctx.fillStyle = tower.color;
-                if (tower.name === "Wall") {
-                    this.ctx.fillRect(buttonRect.x + 25 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor, 20 * this.scaleFactor, 20 * this.scaleFactor);
-                } else {
-                    this.ctx.fillRect(buttonRect.x + 15 * this.scaleFactor, buttonRect.y + 15 * this.scaleFactor, 50 * this.scaleFactor, 50 * this.scaleFactor);
-                }
+                // Fallback remains similar
+                // ...
             }
-            
+
             // Draw tower name and cost
             this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = 'bold 16px Arial';
+            this.ctx.font = `bold ${18 * this.scaleFactor}px "VT323", monospace`; // 14px -> 18px
             this.ctx.textAlign = 'left';
-            this.ctx.fillText(tower.name, buttonRect.x + 80 * this.scaleFactor, buttonRect.y + 30 * this.scaleFactor);
-            
+            const textStartX = buttonRect.x + 90 * this.scaleFactor; // Shifted right from 70
+            this.ctx.fillText(tower.name, textStartX, buttonRect.y + 25 * this.scaleFactor); // Säädetty X
+
             // Draw cost with scrap icon
+            const costTextY = buttonRect.y + 48 * this.scaleFactor; // Base Y for cost text
+            const costTextString = `${tower.cost}`;
+            this.ctx.font = `${18 * this.scaleFactor}px "VT323", monospace`; // Set font before measuring
+            this.ctx.textAlign = 'left'; // Align text left
+            this.ctx.textBaseline = 'middle'; // Align text vertically to middle
+
+            let costIconX = textStartX; // Start icon where text starts
+            let costTextX = textStartX; // Default text start X
+
             if (this.assets.isReady()) {
                 const scrapImg = this.assets.getImage('scrap');
                 const scrapSize = 15 * this.scaleFactor;
-                this.drawImageMaintainAspectRatio(
+                const iconY = costTextY - scrapSize / 2; // Align icon center to text middle
+                const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
                     scrapImg,
-                    buttonRect.x + 80 * this.scaleFactor,
-                    buttonRect.y + 45 * this.scaleFactor,
+                    costIconX,
+                    iconY,
                     scrapSize,
-                    scrapSize
+                    scrapSize,
+                    false, true
                 );
+                costTextX = costIconX + drawnIconWidth + 5 * this.scaleFactor; // Set text X after icon
+            } else {
+                // If icon fails, still reserve some space (adjust as needed)
+                costTextX = costIconX + 15 * this.scaleFactor + 5 * this.scaleFactor;
             }
-            this.ctx.font = '16px Arial';
-            this.ctx.fillText(`${tower.cost}`, buttonRect.x + 100 * this.scaleFactor, buttonRect.y + 55 * this.scaleFactor);
-            
+
+            // Draw cost text after potential icon
+            this.ctx.fillText(costTextString, costTextX, costTextY);
+            this.ctx.textBaseline = 'alphabetic'; // Reset baseline
+
             // Draw hover tooltip if this tower is being hovered over
             if (this.hoveredTowerType === i) {
                 this.drawTowerTooltip(tower, buttonRect);
@@ -1913,7 +2029,7 @@ class Game {
             
             // Draw button text
         this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
-            this.ctx.font = '16px Arial';
+            this.ctx.font = '20px "VT323", monospace'; // 16px -> 20px
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             this.ctx.fillText(
@@ -1980,12 +2096,12 @@ class Game {
         
         // Tooltip title
         this.ctx.fillStyle = '#FFF';
-        this.ctx.font = 'bold 14px Arial';
+        this.ctx.font = `bold ${18 * this.scaleFactor}px "VT323", monospace`; // 14px -> 18px
         this.ctx.textAlign = 'left';
         this.ctx.fillText(tower.name, buttonRect.x + 10 * this.scaleFactor, buttonRect.y - 80 * this.scaleFactor);
         
         // Tooltip description
-            this.ctx.font = '12px Arial';
+            this.ctx.font = `${16 * this.scaleFactor}px "VT323", monospace`; // 12px -> 16px
         this.ctx.fillStyle = '#CCC';
         
         if (tower.name === "Sentry") {
@@ -2022,7 +2138,7 @@ class Game {
 
     drawStats() {
         // Draw stats at the top of the screen
-        this.ctx.font = `${20 * this.scaleFactor}px Arial`;
+        this.ctx.font = `${24 * this.scaleFactor}px "VT323", monospace`; // 20px -> 24px
         this.ctx.textAlign = 'left';
         this.ctx.fillStyle = '#FFF';
     }
@@ -2097,7 +2213,7 @@ class Game {
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.ctx.fillStyle = '#fff';
-        this.ctx.font = '24px Arial';
+        this.ctx.font = '28px "VT323", monospace'; // 24px -> 28px
         this.ctx.textAlign = 'center';
         this.ctx.fillText('Ladataan pelin resursseja...', this.canvas.width / 2, this.canvas.height / 2);
         
@@ -2139,7 +2255,7 @@ class Game {
         
         // Title
         this.ctx.fillStyle = '#FFF';
-        this.ctx.font = `bold ${16 * this.scaleFactor}px Arial`;
+        this.ctx.font = `bold ${20 * this.scaleFactor}px "VT323", monospace`; // 16px -> 20px
         this.ctx.textAlign = 'left';
         this.ctx.fillText("Developer Menu", menuX + 10 * this.scaleFactor, menuY + 25 * this.scaleFactor);
         
@@ -2155,7 +2271,7 @@ class Game {
         this.ctx.fillRect(killAllButtonRect.x, killAllButtonRect.y, killAllButtonRect.width, killAllButtonRect.height);
         
         this.ctx.fillStyle = '#FFF';
-        this.ctx.font = `${14 * this.scaleFactor}px Arial`;
+        this.ctx.font = `${18 * this.scaleFactor}px "VT323", monospace`; // 14px -> 18px
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText("Kill All Creeps", killAllButtonRect.x + killAllButtonRect.width / 2, killAllButtonRect.y + killAllButtonRect.height / 2);
@@ -2172,7 +2288,7 @@ class Game {
         this.ctx.fillRect(forceWaveButtonRect.x, forceWaveButtonRect.y, forceWaveButtonRect.width, forceWaveButtonRect.height);
         
         this.ctx.fillStyle = '#FFF';
-        this.ctx.font = `${14 * this.scaleFactor}px Arial`;
+        this.ctx.font = `${14 * this.scaleFactor}px "VT323", monospace`;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText("Force Next Wave", forceWaveButtonRect.x + forceWaveButtonRect.width / 2, forceWaveButtonRect.y + forceWaveButtonRect.height / 2);

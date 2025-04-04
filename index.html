@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Defense</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
     <style>
         body {
             margin: 0;
@@ -13,7 +17,6 @@
             height: 100vh;
             background-color: #121212;
             color: #eee;
-            font-family: 'Courier New', monospace;
         }
         canvas {
             border: 1px solid #333;
@@ -37,6 +40,12 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas"></canvas>
+
+        <!-- Uusi dialogipaneeli -->
+        <div id="dialogue-panel">
+            <div id="dialogue-avatar"></div>
+            <div id="dialogue-text">Status: OK</div>
+        </div>
     </div>
     
     <!-- Preload kuvat -->

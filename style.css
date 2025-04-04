@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
 body {
     margin: 0;
     padding: 0;
@@ -6,7 +8,8 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: Arial, sans-serif;
+    font-family: "VT323", monospace;
+    font-size: 20px;
 }
 
 #gameCanvas {
@@ -147,4 +150,47 @@ body {
     #loadingBar {
         width: 200px;
     }
-} 
+}
+
+/* --- Uudet tyylit dialogipaneelille --- */
+#dialogue-panel {
+    position: absolute;
+    bottom: -190px;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: stretch; /* Muutettu center -> stretch */
+    padding: 5px;
+    background-color: #111; /* Tummempi tausta */
+    border-top: 3px solid #444; /* Selkeämpi reunus */
+    box-sizing: border-box; /* Varmistaa, että padding ja border sisältyvät leveyteen */
+    z-index: 10;
+    height: 200px; /* Lisätty kiinteä korkeus */
+}
+
+#dialogue-avatar {
+    width: 140px;
+    height: 180px; /* Korkeus vastaamaan paneelin korkeutta - padding */
+    flex-shrink: 0;
+    background-color: #333; /* Fallback-väri */
+    border: 2px solid #555;
+    margin-right: 10px;
+    background-image: url('assets/player.png'); /* Lisätty taustakuva */
+    background-size: cover;
+    background-position: center;
+}
+
+#dialogue-text {
+    flex-grow: 1;
+    padding: 15px;
+    background-color: #1a2a1a; /* Tumma oliivinvihreä/musta */
+    border: 2px solid #3a4a3a; /* Vihertävä reunus */
+    color: #90EE90; /* Vaaleanvihreä teksti */
+    font-family: 'VT323', monospace;
+    font-size: 20px; /* Säädä tarvittaessa */
+    line-height: 1.2; /* Parantaa luettavuutta */
+    overflow-y: auto; /* Lisää vierityspalkin tarvittaessa */
+    height: 100%; /* Täyttää paneelin korkeuden */
+    box-sizing: border-box; /* Varmistaa paddingin ja borderin sisällyttämisen */
+}
+/* --- Dialogipaneelin tyylien loppu --- */
