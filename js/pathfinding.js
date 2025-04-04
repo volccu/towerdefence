@@ -1,5 +1,5 @@
 // A* pathfinding algorithm
-class Pathfinding {
+export class Pathfinding {
     constructor(grid) {
         this.grid = grid;
     }

@@ -1,4 +1,4 @@
-class Creep {
+export class Creep {
     constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false) {
         this.game = game;
         this.x = x;

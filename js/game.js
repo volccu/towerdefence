@@ -1,3 +1,9 @@
+import { MapGenerator } from './mapGenerator.js';
+import { Grid } from './grid.js';
+import { Pathfinding } from './pathfinding.js';
+import { Tower, Wall } from './tower.js';
+import { Creep } from './creep.js';
+
 class AssetLoader {
     constructor() {
         this.images = {};

@@ -1,4 +1,4 @@
-class Grid {
+export class Grid {
     constructor(cols, rows, cellSize, offsetX = 0, mapData = null) {
         this.cols = cols;
         this.rows = rows;

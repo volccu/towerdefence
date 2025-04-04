@@ -1,7 +1,7 @@
 /**
  * MapGenerator - Luokka proseduraalisten karttojen generointiin
  */
-class MapGenerator {
+export class MapGenerator {
     /**
      * Luo uuden MapGenerator-olion
      * @param {Object} options - Karttagenraation asetukset

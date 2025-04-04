@@ -67,7 +67,7 @@ class Projectile {
     }
 }
 
-class Tower {
+export class Tower {
     constructor(game, gridX, gridY, type) {
         this.game = game;
         this.gridX = gridX;
@@ -269,7 +269,7 @@ class Tower {
 }
 
 // Wall class - special tower type that doesn't attack but blocks paths
-class Wall extends Tower {
+export class Wall extends Tower {
     constructor(game, gridX, gridY, wallType) {
         super(game, gridX, gridY, wallType);
         
