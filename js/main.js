@@ -1,11 +1,7 @@
 // Importataan vanhat skriptit niiden sivuvaikutusten ja
 // globaalien muuttujien alustamisen takia.
 // HUOM: Säilytä TÄSMÄLLEEN SAMA JÄRJESTYS kuin index.html:ssä!
-import './mapGenerator.js';
-import './grid.js';
-import './tower.js';
-import './creep.js';
-import './pathfinding.js';
+
 import './game.js';
 
 console.log("Main module loaded, legacy scripts imported.");
