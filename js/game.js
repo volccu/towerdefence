@@ -87,6 +87,8 @@ class Game {
         this.assets.loadImage('button2', 'assets/button2.png'); // Lisätään uusi button2 kuva
         this.assets.loadImage('scrap', 'assets/scrap.png'); // Lisätään scrap kuva
         this.assets.loadImage('miniboss', 'assets/miniboss.png'); // Lisätään miniboss kuva
+        this.assets.loadImage('boss', 'assets/boss.png'); // Lisätään boss kuva
+        this.assets.loadImage('ui_tab', 'assets/tab.png'); // Lisätään UI-paneelin taustakuva
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
@@ -147,6 +149,7 @@ class Game {
         this.waveReached = 0; // Track highest wave reached
         this.gameOver = false;
         this.debugMode = false;
+        this.devMenuVisible = false; // Added for developer menu
         this.scrapMode = false; // Renamed from sellMode
         this.selectedTower = null; // For tower upgrades
         this.showRangeWhenPlacing = true; // Show range when placing towers
@@ -364,6 +367,12 @@ class Game {
             showHealthBar: false,
             healthBarAlpha: 1.0 // Lisätään alpha-arvo health barille
         };
+
+        // Tallennetaan UI-paneelin taustakuvio tänne
+        this.uiPanelPattern = null;
+
+        // Aseta canvasin kursoriksi oletusarvoisesti nuoli
+        this.canvas.style.cursor = 'default';
     }
 
     setupEventListeners() {
@@ -399,6 +408,44 @@ class Game {
                 this.selectedTower = null; // Deselect tower when entering scrap mode
                 this.buyMode = false; // Exit buy mode when entering scrap mode
                 return;
+            }
+            
+            // Check dev menu buttons if visible
+            if (this.devMenuVisible) {
+                // Define Kill All button rect here or reference from a central place
+                const killAllButtonRect = {
+                    x: this.gameArea.x + 10 * this.scaleFactor, 
+                    y: this.gameArea.y + 50 * this.scaleFactor, 
+                    width: 150 * this.scaleFactor, 
+                    height: 30 * this.scaleFactor
+                };
+                if (this.isPointInRect(x, y, killAllButtonRect)) {
+                    this.killAllCreeps();
+                    return; // Prevent other actions if dev menu button is clicked
+                }
+                // Add checks for other future dev buttons here
+                const forceWaveButtonRect = {
+                     x: this.gameArea.x + 10 * this.scaleFactor, 
+                     y: this.gameArea.y + 90 * this.scaleFactor, // Position below kill button
+                     width: 150 * this.scaleFactor, 
+                     height: 30 * this.scaleFactor
+                 };
+                 if (this.isPointInRect(x, y, forceWaveButtonRect)) {
+                     this.startNextWave(); // Force start next wave
+                     console.log("Forcing next wave via dev menu.");
+                     return;
+                 }
+                
+                // Prevent clicks passing through the dev menu background
+                const devMenuRect = {
+                    x: this.gameArea.x + 5 * this.scaleFactor,
+                    y: this.gameArea.y + 5 * this.scaleFactor,
+                    width: 200 * this.scaleFactor,
+                    height: 200 * this.scaleFactor // Adjusted height for new button
+                };
+                if (this.isPointInRect(x, y, devMenuRect)) {
+                    return; // Stop processing click if inside dev menu area but not on a button
+                }
             }
             
             // Check upgrade buttons when tower is selected and it's not a wall
@@ -612,6 +659,12 @@ class Game {
             // Exit buy mode on Escape key
             if (event.key === 'Escape') {
                 this.buyMode = false;
+            }
+            
+            // Toggle dev menu on 'd' key
+            if (event.key === 'd') {
+                this.debugMode = !this.debugMode; // Keep debug mode toggle if needed
+                this.devMenuVisible = !this.devMenuVisible;
             }
         });
     }
@@ -1011,7 +1064,7 @@ class Game {
         }
         
         // Create new creep with appropriate parameters
-        const creep = new Creep(this, x, y, health, speed, color, radius, isBoss || isMiniBoss);
+        const creep = new Creep(this, x, y, health, speed, color, radius, isBoss, isMiniBoss); // Changed parameters
         this.creeps.push(creep);
         
         this.creepsToSpawn--;
@@ -1158,9 +1211,55 @@ class Game {
         this.ctx.fillStyle = '#111';
         this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
-        // Draw UI panel background
-        this.ctx.fillStyle = '#222';
-        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
+        // Luo UI-paneelin kuvio, jos sitä ei ole vielä luotu ja kuva on ladattu
+        if (!this.uiPanelPattern && this.assets.isReady()) {
+            const uiTabImg = this.assets.getImage('ui_tab');
+            // Varmista, että kuva on olemassa JA täysin ladattu (complete & has dimensions)
+            if (uiTabImg && uiTabImg.complete && uiTabImg.naturalWidth > 0) {
+                try {
+                    // --- Uusi skaalauslogiikka alkaa ---
+                    const panelWidth = this.uiPanel.width;
+                    const imgWidth = uiTabImg.naturalWidth;
+                    const imgHeight = uiTabImg.naturalHeight;
+
+                    // Laske skaalauskerroin ja skaalattu korkeus
+                    const scale = panelWidth / imgWidth;
+                    const scaledHeight = imgHeight * scale;
+
+                    // Luo offscreen canvas
+                    const offscreenCanvas = document.createElement('canvas');
+                    offscreenCanvas.width = panelWidth;
+                    offscreenCanvas.height = scaledHeight;
+                    const offscreenCtx = offscreenCanvas.getContext('2d');
+
+                    // Piirrä skaalattu kuva offscreen canvasiin
+                    offscreenCtx.drawImage(uiTabImg, 0, 0, panelWidth, scaledHeight);
+
+                    // Luo kuvio offscreen canvasista
+                    this.uiPanelPattern = this.ctx.createPattern(offscreenCanvas, 'repeat-y');
+                    // --- Uusi skaalauslogiikka päättyy ---
+                    
+                    console.log("UI Panel pattern created successfully (scaled)."); // Debug log
+                } catch (e) {
+                    console.error("Error creating UI panel pattern:", e); // Debug log for errors
+                    this.uiPanelPattern = null; // Varmista, että se on null jos luonti epäonnistuu
+                }
+            } else if (uiTabImg) {
+                 console.log("UI Tab image exists but is not yet complete/loaded."); // Debug log
+            } else {
+                 console.log("UI Tab image not found in assets."); // Debug log
+            }
+        }
+
+        // Draw UI panel background using the pattern if available
+        if (this.uiPanelPattern) {
+            this.ctx.fillStyle = this.uiPanelPattern;
+            // Käännetään konteksti väliaikaisesti, jotta kuvio piirtyy oikein paneelin yläreunasta alkaen
+            this.ctx.save();
+            this.ctx.translate(this.uiPanel.x, this.uiPanel.y);
+            this.ctx.fillRect(0, 0, this.uiPanel.width, this.uiPanel.height);
+            this.ctx.restore();
+        }
         
         // Draw stats
         this.drawStats();
@@ -1353,51 +1452,7 @@ class Game {
         
         // Draw creeps
         for (const creep of this.creeps) {
-            if (this.assets.isReady()) {
-                let img;
-                if (creep.isMiniBoss) {
-                    img = this.assets.getImage('miniboss');
-                } else if (creep.isBoss) {
-                    img = this.assets.getImage('creep'); // Käytetään normaalikuvaa bossille kunnes boss kuva on lisätty
-                } else {
-                    img = this.assets.getImage('creep');
-                }
-                
-                const size = creep.radius * 2;
-                this.drawImageMaintainAspectRatio(
-                    img,
-                    creep.x - creep.radius + this.gameArea.x,
-                    creep.y - creep.radius,
-                    size,
-                    size,
-                    true,
-                    true
-                );
-            } else {
-                // Fallback to circle if image not loaded
-                this.ctx.fillStyle = creep.color;
-                this.ctx.beginPath();
-                this.ctx.arc(creep.x + this.gameArea.x, creep.y, creep.radius, 0, Math.PI * 2);
-                this.ctx.fill();
-            }
-            
-            // Draw health bar for creeps
-            if (creep.health < creep.maxHealth) {
-                const healthBarWidth = creep.radius * 2;
-                const healthBarHeight = 4 * this.scaleFactor;
-                const healthBarX = creep.x - creep.radius + this.gameArea.x;
-                const healthBarY = creep.y - creep.radius - 8 * this.scaleFactor;
-                
-                // Health bar background
-                this.ctx.fillStyle = 'rgba(51, 51, 51, 0.8)';
-                this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
-                
-                // Health bar fill
-                const healthPercentage = creep.health / creep.maxHealth;
-                const color = healthPercentage > 0.5 ? '#4CAF50' : healthPercentage > 0.25 ? '#FFA500' : '#FF0000';
-                this.ctx.fillStyle = color;
-                this.ctx.fillRect(healthBarX, healthBarY, healthBarWidth * healthPercentage, healthBarHeight);
-            }
+            creep.draw(this.ctx); // Kutsu creepin omaa draw-metodia
         }
         
         // Draw selection rectangle when dragging in scrap mode
@@ -1472,12 +1527,23 @@ class Game {
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
         
-        // Draw UI panel background
-        this.ctx.fillStyle = '#222';
-        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
-        
-        // Draw UI elements
+        // Draw UI panel background again (outside clip area)
+        if (this.uiPanelPattern) {
+            this.ctx.fillStyle = this.uiPanelPattern;
+             // Käännetään konteksti väliaikaisesti, jotta kuvio piirtyy oikein paneelin yläreunasta alkaen
+            this.ctx.save();
+            this.ctx.translate(this.uiPanel.x, this.uiPanel.y);
+            this.ctx.fillRect(0, 0, this.uiPanel.width, this.uiPanel.height);
+            this.ctx.restore();
+        }
+
+        // Piirrä itse UI-elementit (napit, tekstit jne.)
         this.drawUI();
+        
+        // Draw Dev Menu if visible
+        if (this.devMenuVisible) {
+            this.drawDevMenu();
+        }
         
         // Draw game over message
         if (this.gameOver) {
@@ -2045,6 +2111,73 @@ class Game {
         
         this.ctx.fillStyle = '#4CAF50';
         this.ctx.fillRect(this.canvas.width / 2 - barWidth / 2, this.canvas.height / 2 + 30 * this.scaleFactor, barWidth * progress, barHeight);
+    }
+
+    // Method to kill all active creeps
+    killAllCreeps() {
+        for (let i = this.creeps.length - 1; i >= 0; i--) {
+            const creep = this.creeps[i];
+            if (creep.isAlive) {
+                creep.health = 0;
+                creep.isAlive = false;
+                // The standard update loop will handle removal and potential scrap reward
+            }
+        }
+        console.log("All creeps killed via dev menu.");
+    }
+    
+    // Draw the developer menu
+    drawDevMenu() {
+        const menuX = this.gameArea.x + 5 * this.scaleFactor;
+        const menuY = this.gameArea.y + 5 * this.scaleFactor;
+        const menuWidth = 200 * this.scaleFactor;
+        const menuHeight = 200 * this.scaleFactor; // Adjusted height for new button
+        
+        // Background
+        this.ctx.fillStyle = 'rgba(50, 50, 50, 0.85)';
+        this.ctx.fillRect(menuX, menuY, menuWidth, menuHeight);
+        
+        // Title
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.font = `bold ${16 * this.scaleFactor}px Arial`;
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText("Developer Menu", menuX + 10 * this.scaleFactor, menuY + 25 * this.scaleFactor);
+        
+        // Kill All Creeps Button
+        const killAllButtonRect = {
+            x: menuX + 10 * this.scaleFactor, 
+            y: menuY + 50 * this.scaleFactor, 
+            width: 150 * this.scaleFactor, 
+            height: 30 * this.scaleFactor
+        };
+        
+        this.ctx.fillStyle = '#FF4444';
+        this.ctx.fillRect(killAllButtonRect.x, killAllButtonRect.y, killAllButtonRect.width, killAllButtonRect.height);
+        
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.font = `${14 * this.scaleFactor}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText("Kill All Creeps", killAllButtonRect.x + killAllButtonRect.width / 2, killAllButtonRect.y + killAllButtonRect.height / 2);
+        
+        // Force Next Wave Button
+        const forceWaveButtonRect = {
+            x: menuX + 10 * this.scaleFactor, 
+            y: menuY + 90 * this.scaleFactor, // Position below kill button
+            width: 150 * this.scaleFactor, 
+            height: 30 * this.scaleFactor
+        };
+        
+        this.ctx.fillStyle = '#4CAF50'; // Green color
+        this.ctx.fillRect(forceWaveButtonRect.x, forceWaveButtonRect.y, forceWaveButtonRect.width, forceWaveButtonRect.height);
+        
+        this.ctx.fillStyle = '#FFF';
+        this.ctx.font = `${14 * this.scaleFactor}px Arial`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText("Force Next Wave", forceWaveButtonRect.x + forceWaveButtonRect.width / 2, forceWaveButtonRect.y + forceWaveButtonRect.height / 2);
+        
+        // Add more buttons here in the future
     }
 }
 

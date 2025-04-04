@@ -1,5 +1,5 @@
 export class Creep {
-    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false) {
+    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false, isMiniBoss = false) {
         this.game = game;
         this.x = x;
         this.y = y;
@@ -9,6 +9,7 @@ export class Creep {
         this.color = color;
         this.radius = radius;
         this.isBoss = isBoss;
+        this.isMiniBoss = isMiniBoss;
         this.isAlive = true;
         this.reachedEnd = false;
         this.pathIndex = 0;
@@ -231,24 +232,40 @@ export class Creep {
         
         // Käytä creep-kuvaa ympyrän sijaan kun kuva on ladattu
         if (this.game.assets && this.game.assets.isReady()) {
-            const creepImg = this.game.assets.getImage('creep');
+            let creepImg;
+            if (this.isBoss) {
+                creepImg = this.game.assets.getImage('boss');
+            } else if (this.isMiniBoss) {
+                creepImg = this.game.assets.getImage('miniboss');
+            } else {
+                creepImg = this.game.assets.getImage('creep');
+            }
             
             // Keskitä kuva creep-koordinaatteihin
             const drawX = this.x - this.radius;
             const drawY = this.y - this.radius;
             const size = this.radius * 2;
             
-            ctx.drawImage(creepImg, drawX, drawY, size, size);
+            // Varmista että kuva on olemassa ennen piirtämistä
+            if (creepImg) {
+                ctx.drawImage(creepImg, drawX, drawY, size, size);
+            } else {
+                // Fallback jos kuva ei ole vielä latautunut tai sitä ei löydy
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
         } else {
-            // Fallback jos kuva ei ole vielä latautunut
+            // Fallback jos AssetLoader ei ole valmis
             ctx.fillStyle = this.color;
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
             ctx.fill();
         }
         
-        // Draw health bar only if damaged or boss
-        if (this.isDamaged || this.isBoss) {
+        // Draw health bar only if damaged or boss/miniboss
+        if (this.isDamaged || this.isBoss || this.isMiniBoss) {
             const healthBarWidth = this.radius * 2;
             const healthBarHeight = 4;
             const healthBarX = this.x - healthBarWidth / 2;
