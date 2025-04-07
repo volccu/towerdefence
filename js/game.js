@@ -197,11 +197,11 @@ class Game {
             },
             {
                 name: "ElectricFence",
-                description: "Sähköaita joka vahingoittaa lähellä olevia vihollisia",
+                description: "Sähköaita joka vahingoittaa lähellä olevia vihollisia. Vahingoittaa kaikkia vihollisia yhden ruudun etäisyydellä.",
                 cost: 15,
                 damage: 2,
-                range: 40 * this.scaleFactor, // Yhden ruudun verran kantamaa
-                fireRate: 2, // 2 vahinkoa sekunnissa
+                range: 40 * this.scaleFactor,
+                fireRate: 2,
                 color: "#4169E1",
                 strokeColor: "#0000CD",
                 isElectricFence: true
@@ -661,11 +661,13 @@ class Game {
                             infoText = `Area denial weapon. Make them regret clustering together.\n\n<span class="stats">Direct Hit: ${tower.damage}\nRange: ${tower.range}\nBlast Damage: ${tower.explosionDamage}\nBlast Radius: ${tower.explosionRadius}</span>`;
                         } else if (tower.name === "Sniper") {
                             infoText = `Long-range precision. One shot should be enough.\n\n<span class="stats">Damage: ${tower.damage}\nRange: Unlimited\nSpeed: ${tower.fireRate}/sec</span>`;
+                        } else if (tower.name === "ElectricFence") {
+                            infoText = `Electric fence that damages nearby enemies. Perfect for chokepoints.\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec</span>`;
                         }
                         
                         // Päivitä dialogiteksti ja käsittele HTML
                         if (this.dialogueTextElement) {
-                            this.dialogueTextElement.innerHTML = infoText; // Käytetään innerHTML:ää span-elementtien takia
+                            this.dialogueTextElement.innerHTML = infoText;
                         }
                         
                         break;
@@ -1145,20 +1147,55 @@ class Game {
             this.waveReached = this.waveNumber;
         }
         
-        // Set creepsToSpawn based on wave type
-        if (this.waveNumber % 5 === 0) {
-            // Mini-boss wave
-            this.creepsToSpawn = 5;
-        } else if (this.waveNumber % 10 === 0) {
-            // Boss wave
-            this.creepsToSpawn = 5;
-        } else {
-            // Normal wave
-            this.creepsToSpawn = 5 + this.waveNumber * 2;
-        }
+        // Generoi uniikki aalto
+        this.generateWave();
         
         this.lastSpawnTime = 0;
         this.waveActive = true;
+    }
+
+    generateWave() {
+        // Perusarvot aallon vaikeudelle
+        const baseDifficulty = 1 + (this.waveNumber * 0.1);
+        
+        // Boss aallot
+        if (this.waveNumber % 10 === 0) {
+            this.creepsToSpawn = 1; // Vain yksi boss
+            this.waveCreeps = [{ type: 'boss' }];
+            return;
+        }
+        
+        // Mini-boss aallot
+        if (this.waveNumber % 5 === 0) {
+            this.creepsToSpawn = 3; // Muutama mini-boss
+            this.waveCreeps = Array(3).fill({ type: 'miniBoss' });
+            return;
+        }
+        
+        // Normaalit aallot
+        const creepTypes = ['normal', 'fast', 'tank', 'splitter'];
+        const creepCount = Math.floor(5 + this.waveNumber * 1.5);
+        this.creepsToSpawn = creepCount;
+        
+        // Luo satunnainen aalto
+        this.waveCreeps = [];
+        for (let i = 0; i < creepCount; i++) {
+            // Valitse creep-tyyppi painotetulla todennäköisyydellä
+            let type;
+            const rand = Math.random();
+            
+            if (rand < 0.4) {
+                type = 'normal';
+            } else if (rand < 0.6) {
+                type = 'fast';
+            } else if (rand < 0.8) {
+                type = 'tank';
+            } else {
+                type = 'splitter';
+            }
+            
+            this.waveCreeps.push({ type });
+        }
     }
 
     spawnCreep() {
@@ -1174,32 +1211,25 @@ class Game {
         let health = Math.floor(baseHealth * healthMultiplier);
         let speed = 0.5;
         let radius = 8 * this.scaleFactor;
-        let color = '#FF5500';
         
-        // Check if this is a boss or mini-boss wave
-        let isBoss = false;
-        let isMiniBoss = false;
-        
-        if (this.waveNumber % 10 === 0) {
-            // Boss every 10th wave (check first)
-            isBoss = true;
-            health *= 3;  // 3x health
-            speed *= 0.5; // Slower
-            radius = 16 * this.scaleFactor;
-            color = '#FF0000';
-        } else if (this.waveNumber % 5 === 0) {
-            // Mini-boss every 5th wave (only if not a boss wave)
-            isMiniBoss = true;
-            health *= 2;  // 2x health
-            speed *= 0.7; // Slightly faster
-            radius = 14 * this.scaleFactor;
-            color = '#FF8800';
-        }
+        // Hae seuraava creep aallon listasta
+        const creepType = this.waveCreeps[this.waveCreeps.length - this.creepsToSpawn];
         
         // Create new creep with appropriate parameters
-        const creep = new Creep(this, x, y, health, speed, color, radius, isBoss, isMiniBoss); // Changed parameters
-        this.creeps.push(creep);
+        const creep = new Creep(
+            this,
+            x,
+            y,
+            health,
+            speed,
+            '#FF5500', // Väri asetetaan Creep-luokassa
+            radius,
+            creepType.type === 'boss',
+            creepType.type === 'miniBoss',
+            creepType.type
+        );
         
+        this.creeps.push(creep);
         this.creepsToSpawn--;
     }
 
@@ -2039,31 +2069,35 @@ class Game {
             if (this.assets.isReady()) {
                 const buttonImg = this.assets.getImage('button2');
                 const padding = 10 * this.scaleFactor;
+                this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
                 this.drawImageMaintainAspectRatio(
                     buttonImg,
-                    buttonRect.x, // Changed from buttonRect.x - padding
+                    buttonRect.x,
                     buttonRect.y,
-                    buttonRect.width, // Changed from buttonRect.width + padding * 2
+                    buttonRect.width,
                     buttonRect.height,
                     false
                 );
+                this.ctx.globalAlpha = 1;
             } else {
                 // Fallback to colored rectangle if image not loaded
-            this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
-            this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+                this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
+                this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
+                this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
+                this.ctx.globalAlpha = 1;
             }
             
             // Draw tower sprite
             if (this.assets.isReady()) {
                 let img;
-                const iconSize = 40 * this.scaleFactor; // Consistent icon size
-                const iconX = buttonRect.x + 20 * this.scaleFactor; // Adjusted X for better centering
-                const iconY = buttonRect.y + (buttonRect.height - iconSize) / 2; // Vertically center icon
+                const iconSize = 40 * this.scaleFactor;
+                const iconX = buttonRect.x + 20 * this.scaleFactor;
+                const iconY = buttonRect.y + (buttonRect.height - iconSize) / 2;
 
                 if (tower.name === "Wall") {
                     img = this.assets.getImage('wall');
-                    // Adjust wall icon size and position slightly for visual balance
                     const wallIconSize = iconSize * 0.6;
+                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
                     this.drawImageMaintainAspectRatio(
                         img,
                         iconX + (iconSize - wallIconSize) / 2, 
@@ -2071,24 +2105,26 @@ class Game {
                         wallIconSize, 
                         wallIconSize
                     );
+                    this.ctx.globalAlpha = 1;
                 } else if (tower.name === "Scrapper") {
                     img = this.assets.getImage('scrapper');
+                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
                     this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize);
+                    this.ctx.globalAlpha = 1;
                 } else {
                     img = this.assets.getImage('tower');
+                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
                     this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize, true);
+                    this.ctx.globalAlpha = 1;
                 }
-            } else {
-                // Fallback remains similar
-                // ...
             }
 
             // Draw tower name and cost
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.font = `bold ${18 * this.scaleFactor}px "VT323", monospace`; // 14px -> 18px
+            this.ctx.fillStyle = this.scraps >= tower.cost ? '#FFFFFF' : '#999999';
+            this.ctx.font = `bold ${18 * this.scaleFactor}px "VT323", monospace`;
             this.ctx.textAlign = 'left';
-            const textStartX = buttonRect.x + 90 * this.scaleFactor; // Shifted right from 70
-            this.ctx.fillText(tower.name, textStartX, buttonRect.y + 25 * this.scaleFactor); // Säädetty X
+            const textStartX = buttonRect.x + 90 * this.scaleFactor;
+            this.ctx.fillText(tower.name, textStartX, buttonRect.y + 25 * this.scaleFactor);
 
             // Draw cost with scrap icon
             const costTextY = buttonRect.y + 48 * this.scaleFactor; // Base Y for cost text

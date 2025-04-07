@@ -1,5 +1,5 @@
 export class Creep {
-    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false, isMiniBoss = false) {
+    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false, isMiniBoss = false, type = 'normal') {
         this.game = game;
         this.x = x;
         this.y = y;
@@ -10,6 +10,7 @@ export class Creep {
         this.radius = radius;
         this.isBoss = isBoss;
         this.isMiniBoss = isMiniBoss;
+        this.type = type;
         this.isAlive = true;
         this.reachedEnd = false;
         this.pathIndex = 0;
@@ -17,7 +18,46 @@ export class Creep {
         this.isDamaged = false; // Track if creep has been damaged
         this.attackingTower = null; // Track which tower creep is attacking
         this.attackCooldown = 0; // Time between attacks
-        this.attackDamage = isBoss ? 20 : 10; // Bosses do more damage
+        
+        // Asetetaan ominaisuudet creep-tyypin mukaan
+        switch(type) {
+            case 'fast':
+                this.speed *= 2;
+                this.health *= 0.5;
+                this.color = '#00FF00';
+                this.attackDamage = 5;
+                break;
+            case 'tank':
+                this.speed *= 0.5;
+                this.health *= 2;
+                this.color = '#0000FF';
+                this.attackDamage = 15;
+                break;
+            case 'splitter':
+                this.health *= 0.7;
+                this.color = '#FF00FF';
+                this.attackDamage = 8;
+                this.willSplit = true;
+                break;
+            case 'boss':
+                this.health *= 3;
+                this.speed *= 0.5;
+                this.radius = 16 * this.game.scaleFactor;
+                this.color = '#FF0000';
+                this.attackDamage = 20;
+                break;
+            case 'miniBoss':
+                this.health *= 2;
+                this.speed *= 0.7;
+                this.radius = 14 * this.game.scaleFactor;
+                this.color = '#FF8800';
+                this.attackDamage = 15;
+                break;
+            default: // normal
+                this.attackDamage = 10;
+                break;
+        }
+        
         this.findPath();
     }
 
@@ -222,7 +262,7 @@ export class Creep {
         this.health -= amount;
         this.isDamaged = true; // Mark as damaged to show health bar
         if (this.health <= 0) {
-            this.isAlive = false;
+            this.die();
             // Score and money are added in Game class
         }
     }
@@ -300,6 +340,37 @@ export class Creep {
             ctx.stroke();
             
             ctx.globalAlpha = 1;
+        }
+    }
+
+    die() {
+        this.isAlive = false;
+        
+        // Splitter creep jakautuu pienemmiksi creeps
+        if (this.type === 'splitter' && this.willSplit) {
+            const splitCount = 3;
+            const splitHealth = Math.floor(this.maxHealth / splitCount);
+            const splitRadius = this.radius * 0.6;
+            
+            for (let i = 0; i < splitCount; i++) {
+                const angle = (i / splitCount) * Math.PI * 2;
+                const offsetX = Math.cos(angle) * this.radius;
+                const offsetY = Math.sin(angle) * this.radius;
+                
+                const splitCreep = new Creep(
+                    this.game,
+                    this.x + offsetX,
+                    this.y + offsetY,
+                    splitHealth,
+                    this.speed * 1.2,
+                    this.color,
+                    splitRadius,
+                    false,
+                    false,
+                    'normal'
+                );
+                this.game.creeps.push(splitCreep);
+            }
         }
     }
 } 
