@@ -1,38 +1,9 @@
+import { AssetLoader } from './assetLoader.js';
 import { MapGenerator } from './mapGenerator.js';
 import { Grid } from './grid.js';
 import { Pathfinding } from './pathfinding.js';
-import { Tower, Wall } from './tower.js';
+import { Tower, Wall, ElectricFence } from './tower.js';
 import { Creep } from './creep.js';
-
-class AssetLoader {
-    constructor() {
-        this.images = {};
-        this.totalImages = 0;
-        this.loadedImages = 0;
-        this.loadingComplete = false;
-    }
-
-    loadImage(name, src) {
-        this.totalImages++;
-        const img = new Image();
-        img.onload = () => {
-            this.loadedImages++;
-            if (this.loadedImages === this.totalImages) {
-                this.loadingComplete = true;
-            }
-        };
-        img.src = src;
-        this.images[name] = img;
-    }
-
-    getImage(name) {
-        return this.images[name];
-    }
-
-    isReady() {
-        return this.loadingComplete;
-    }
-}
 
 class Game {
     constructor() {
@@ -84,11 +55,11 @@ class Game {
         this.assets.loadImage('spawn', 'assets/spawn.png');
         this.assets.loadImage('base', 'assets/base.png');
         this.assets.loadImage('button', 'assets/button.png');
-        this.assets.loadImage('button2', 'assets/button2.png'); // Lisätään uusi button2 kuva
-        this.assets.loadImage('scrap', 'assets/scrap.png'); // Lisätään scrap kuva
-        this.assets.loadImage('miniboss', 'assets/miniboss.png'); // Lisätään miniboss kuva
-        this.assets.loadImage('boss', 'assets/boss.png'); // Lisätään boss kuva
-        this.assets.loadImage('ui_tab', 'assets/tab.png'); // Lisätään UI-paneelin taustakuva
+        this.assets.loadImage('button2', 'assets/button2.png');
+        this.assets.loadImage('scrap', 'assets/scrap.png');
+        this.assets.loadImage('miniboss', 'assets/miniboss.png');
+        this.assets.loadImage('boss', 'assets/boss.png');
+        this.assets.loadImage('ui_tab', 'assets/tab.png');
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
@@ -173,11 +144,13 @@ class Game {
                 name: "Sentry",
                 description: "Tehokas puolustusjärjestelmä",
                 cost: 40,
-                damage: 20,
+                damage: 10,
                 range: 150 * this.scaleFactor,
-                fireRate: 1,
+                fireRate: 1.5,
                 color: "#00AAFF",
-                strokeColor: "#0088CC"
+                strokeColor: "#0088CC",
+                burstCount: 3,
+                burstDelay: 0.1
             },
             {
                 name: "Bouncer",
@@ -221,6 +194,17 @@ class Game {
                 fireRate: 0,
                 color: "#8B4513",
                 strokeColor: "#5D2906"
+            },
+            {
+                name: "ElectricFence",
+                description: "Sähköaita joka vahingoittaa lähellä olevia vihollisia",
+                cost: 15,
+                damage: 2,
+                range: 40 * this.scaleFactor, // Yhden ruudun verran kantamaa
+                fireRate: 2, // 2 vahinkoa sekunnissa
+                color: "#4169E1",
+                strokeColor: "#0000CD",
+                isElectricFence: true
             },
             {
                 name: "Scrapper",
@@ -954,6 +938,16 @@ class Game {
             if (this.isPointNearSpawnOrHome(gridX, gridY)) {
                 canPlace = false;
             }
+        } else if (towerType.name === "ElectricFence") {
+            // Check if the single cell is occupied or is an obstacle
+            if (this.grid.isCellOccupied(gridX, gridY)) {
+                canPlace = false;
+            }
+
+            // Don't place electric fences too close to spawn/home
+            if (this.isPointNearSpawnOrHome(gridX, gridY)) {
+                canPlace = false;
+            }
         } else {
             // Regular tower takes 2x2 cells
             // Check if any of the 2x2 cells are occupied or are obstacles
@@ -987,6 +981,10 @@ class Game {
         let tower;
         if (towerType.name === "Wall") {
             tower = new Wall(this, gridX, gridY, towerType);
+            // Mark 1x1 cell as occupied
+            this.grid.markCellOccupied(gridX, gridY);
+        } else if (towerType.name === "ElectricFence") {
+            tower = new ElectricFence(this, gridX, gridY, towerType);
             // Mark 1x1 cell as occupied
             this.grid.markCellOccupied(gridX, gridY);
         } else {
@@ -1479,15 +1477,28 @@ class Game {
             // Different wireframe for wall vs tower
             let canPlace;
             
-            if (towerType.name === "Wall") {
-                // Wall only takes one cell
+            if (towerType.name === "Wall" || towerType.name === "ElectricFence") {
+                // Wall and ElectricFence only take one cell
                 canPlace = !this.grid.isCellOccupied(this.hoverX, this.hoverY) && 
                             !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
             
-                // Draw 1x1 wireframe for wall
-            this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
+                // Draw 1x1 wireframe for wall/fence
+                this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(x, y, this.grid.cellSize, this.grid.cellSize);
                 
+                // Show range circle for ElectricFence
+                if (towerType.name === "ElectricFence" && canPlace) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(
+                        x + this.grid.cellSize / 2,
+                        y + this.grid.cellSize / 2,
+                        towerType.range,
+                        0,
+                        Math.PI * 2
+                    );
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    this.ctx.stroke();
+                }
             } else {
                 // Regular tower takes 2x2 cells
                 canPlace = this.grid.canPlaceTower(this.hoverX, this.hoverY) && 
@@ -1517,7 +1528,7 @@ class Game {
         for (const tower of this.towers) {
             if (tower.isWall) {
                 // Seinät piirretään normaalisti
-            tower.draw(this.ctx);
+                tower.draw(this.ctx);
             } else if (tower.isScrapper) {
                 // Scrapperit piirretään normaalisti
                 tower.draw(this.ctx);
@@ -1555,6 +1566,9 @@ class Game {
                         this.ctx.fill();
                     }
                 }
+
+                // Piirrä torni uudelleen, jotta laser-viiva näkyy päällä
+                tower.draw(this.ctx);
             }
         }
         
