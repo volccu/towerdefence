@@ -41,6 +41,22 @@ class Game {
         // Canvas & context
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
+        this.gameContainerElement = document.getElementById('game-container'); // Get container reference
+
+        // *** Add References to HTML Elements ***
+        this.rightPanelElement = document.getElementById('right-panel');
+        this.dialoguePanelElement = document.getElementById('dialogue-panel');
+        this.dialogueAvatarElement = document.getElementById('dialogue-avatar');
+        this.dialogueTextElement = document.getElementById('dialogue-text');
+        this.craftingAreaElement = document.getElementById('crafting-area');
+        this.towerButtonsContainerElement = document.getElementById('tower-buttons-container');
+        this.statsAreaElement = document.getElementById('stats-area');
+        this.scrapsValueElement = document.getElementById('scraps-value');
+        this.waveValueElement = document.getElementById('wave-value');
+        this.controlsAreaElement = document.getElementById('controls-area');
+        this.nextWaveButtonElement = document.getElementById('next-wave-button'); // Ensure this is referenced
+        this.scrapModeButtonElement = document.getElementById('scrap-mode-button');
+        // *** End References ***
         
         // Luo asset loader
         this.assets = new AssetLoader();
@@ -68,35 +84,35 @@ class Game {
         this.scaleFactor = 1.5;
         
         // Canvas size - wider to accommodate UI panels
-        this.canvas.width = 800 * this.scaleFactor; // Kavennettu 900 -> 800
-        this.canvas.height = 800 * this.scaleFactor;
+        this.canvas.width = 700 * this.scaleFactor; // Reduced from 800 to 700
+        this.canvas.height = 700 * this.scaleFactor; // Reduced from 800 to 700
         
         // Stats panel on top
         this.statsPanel = {
             x: 0,
             y: 0,
-            width: 800 * this.scaleFactor, // Kavennettu 900 -> 800
-            height: 0 // Poistetaan stats paneeli kokonaan
+            width: 700 * this.scaleFactor,
+            height: 0 // Stats panel removed
         };
         
         // Game area definition (now at top)
         this.gameArea = {
             x: 0,
             y: 0,
-            width: 600 * this.scaleFactor,
-            height: 800 * this.scaleFactor
+            width: 550 * this.scaleFactor, // Adjusted from 600
+            height: 700 * this.scaleFactor
         };
         
         // UI panel on right side
         this.uiPanel = {
-            x: 600 * this.scaleFactor,
+            x: 550 * this.scaleFactor, // Adjusted from 600
             y: 0,
-            width: 200 * this.scaleFactor, // Kavennettu 300 -> 200
-            height: 800 * this.scaleFactor
+            width: 150 * this.scaleFactor, // Reduced from 200 to 150
+            height: 700 * this.scaleFactor // Reduced from 800 to 700
         };
         
         // Grid (small cells)
-        const cellSize = 20 * this.scaleFactor;
+        const cellSize = 16 * this.scaleFactor; // Changed base size from 20 to 16
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
 
@@ -300,55 +316,54 @@ class Game {
             damage: {
                 x: this.uiPanel.x + 20 * this.scaleFactor,
                 y: 500 * this.scaleFactor,
-                width: 80 * this.scaleFactor,
+                width: 60 * this.scaleFactor,
                 height: 30 * this.scaleFactor,
                 text: "DMG +30%",
                 cost: 50
             },
             fireRate: {
-                x: this.uiPanel.x + 110 * this.scaleFactor,
+                x: this.uiPanel.x + 80 * this.scaleFactor,
                 y: 500 * this.scaleFactor,
-                width: 80 * this.scaleFactor,
+                width: 60 * this.scaleFactor,
                 height: 30 * this.scaleFactor,
                 text: "RATE +20%",
                 cost: 50
             },
-            range: {
-                x: this.uiPanel.x + 200 * this.scaleFactor,
+            range: { // Add range upgrade definition
+                x: this.uiPanel.x + 140 * this.scaleFactor, // Adjust X if needed
                 y: 500 * this.scaleFactor,
-                width: 80 * this.scaleFactor,
+                width: 60 * this.scaleFactor,
                 height: 30 * this.scaleFactor,
-                text: "RANGE +25%",
-                cost: 50
+                text: "RANGE +25%", // Define text
+                cost: 50 // Define cost
             }
         };
         
         // Tower tooltip for upgrades
         this.towerTooltip = {
-            width: 300 * this.scaleFactor,
-            height: 180 * this.scaleFactor,
-            padding: 10 * this.scaleFactor,
+            width: 200 * this.scaleFactor,
+            height: 150 * this.scaleFactor,
+            padding: 8 * this.scaleFactor,
             visible: false,
             x: 0,
             y: 0,
             buttons: {
                 damage: {
-                    width: 80 * this.scaleFactor,
-                    height: 30 * this.scaleFactor,
+                    width: 60 * this.scaleFactor,
+                    height: 25 * this.scaleFactor,
                     text: "DMG +30%",
                     cost: 50
                 },
                 fireRate: {
-                    width: 80 * this.scaleFactor,
-                    height: 30 * this.scaleFactor,
+                    width: 60 * this.scaleFactor,
+                    height: 25 * this.scaleFactor,
                     text: "RATE +20%",
                     cost: 50
                 },
-                range: {
-                    width: 80 * this.scaleFactor,
-                    height: 30 * this.scaleFactor,
-                    text: "RANGE +25%",
-                    cost: 50
+                range: { // Add range button definition HERE
+                    width: 60 * this.scaleFactor,
+                    height: 25 * this.scaleFactor
+                    // No text or cost needed here
                 }
             }
         };
@@ -371,14 +386,222 @@ class Game {
         // Aseta canvasin kursoriksi oletusarvoisesti nuoli
         this.canvas.style.cursor = 'default';
 
-        // Lisätään viittaus dialogitekstielementtiin
-        this.dialogueTextElement = document.getElementById('dialogue-text');
-
         // Muuttuja kirjoitusanimaation intervallille
         this.typingInterval = null;
         // Muuttuja dialogin poiston ajastimelle
         this.dialogueClearTimeout = null;
+
+        this.populateCraftingMenu(); // *** Call to populate HTML menu ***
+        this.resizeCanvas(); // Call initial resize
+        window.addEventListener('resize', () => this.resizeCanvas()); // Add resize listener
     }
+
+    resizeCanvas() {
+        // Define desired aspect ratios and widths
+        const desiredGameWidth = 550; // Width of the core game area
+        const desiredGameHeight = 700; // Height of the core game area
+        const desiredUiWidth = 300; // Fixed width for the HTML UI panel (from CSS)
+        
+        // Calculate the total aspect ratio needed by the container
+        const totalDesiredWidth = desiredGameWidth + desiredUiWidth;
+        const totalDesiredHeight = desiredGameHeight; 
+        const containerAspectRatio = totalDesiredWidth / totalDesiredHeight;
+
+        // Get available space (e.g., 90% of viewport)
+        let availableWidth = window.innerWidth * 0.9;
+        let availableHeight = window.innerHeight * 0.9;
+
+        // Calculate container size maintaining aspect ratio
+        let containerWidth, containerHeight;
+        if (availableWidth / availableHeight > containerAspectRatio) {
+            // Limited by height
+            containerHeight = availableHeight;
+            containerWidth = availableHeight * containerAspectRatio;
+        } else {
+            // Limited by width
+            containerWidth = availableWidth;
+            containerHeight = availableWidth / containerAspectRatio;
+        }
+
+        // Apply dimensions to the main container div
+        this.gameContainerElement.style.width = `${containerWidth}px`;
+        this.gameContainerElement.style.height = `${containerHeight}px`;
+
+        // Calculate the actual canvas dimensions based on the container size and desired game width proportion
+        const actualCanvasWidth = containerWidth * (desiredGameWidth / totalDesiredWidth);
+        const actualCanvasHeight = containerHeight; // Canvas height matches container height
+        
+        // Set the canvas drawing surface size
+        this.canvas.width = actualCanvasWidth;
+        this.canvas.height = actualCanvasHeight;
+
+        // Define gameArea to match the canvas exactly
+        this.gameArea.x = 0;
+        this.gameArea.y = 0;
+        this.gameArea.width = this.canvas.width;
+        this.gameArea.height = this.canvas.height;
+
+        // UI Panel object in JS might be less relevant now, but keep for reference if needed
+        this.uiPanel.width = desiredUiWidth; // Use the fixed CSS width
+        this.uiPanel.height = actualCanvasHeight;
+        this.uiPanel.x = actualCanvasWidth; // Starts after the canvas
+        this.uiPanel.y = 0;
+
+        // Calculate scaleFactor based on the actual game area width vs desired game width
+        this.scaleFactor = actualCanvasWidth / desiredGameWidth;
+        
+        // Re-initialize grid with new dimensions
+        const cellSize = 16 * this.scaleFactor; 
+        const cols = Math.floor(this.gameArea.width / cellSize);
+        const rows = Math.floor(this.gameArea.height / cellSize);
+        // Regenerate map data based on potentially new cols/rows?
+        // this.mapData = this.mapGenerator.regenerateMap(cols, rows); // Assumes MapGenerator has regenerate
+        this.grid = new Grid(cols, rows, cellSize, this.gameArea.x, this.mapData); // Use existing map data for now
+        this.grid.game = this;
+        this.pathfinding = new Pathfinding(this.grid); // Recreate pathfinding with new grid
+
+        // Update spawn/home point absolute positions (relative to gameArea)
+        this.spawnPoint.x = this.gameArea.x + this.gameArea.width * 0.5; // Example: Center top
+        this.spawnPoint.y = this.gameArea.y + 40 * this.scaleFactor; 
+        this.homePoint.x = this.gameArea.x + this.gameArea.width * 0.5; // Example: Center bottom
+        this.homePoint.y = this.gameArea.y + this.gameArea.height - 60 * this.scaleFactor; 
+        this.spawnPoint.radius = 20 * this.scaleFactor;
+        this.homePoint.radius = 20 * this.scaleFactor;
+
+        // Update positions/sizes of any remaining canvas elements (like tooltip buttons, game over button)
+        // Tooltip button sizes
+        this.towerTooltip.width = 200 * this.scaleFactor;
+        this.towerTooltip.height = 150 * this.scaleFactor;
+        this.towerTooltip.padding = 8 * this.scaleFactor;
+        if(this.towerTooltip.buttons.damage) {
+           this.towerTooltip.buttons.damage.width = 60 * this.scaleFactor;
+           this.towerTooltip.buttons.damage.height = 25 * this.scaleFactor;
+        }
+         if(this.towerTooltip.buttons.fireRate) {
+           this.towerTooltip.buttons.fireRate.width = 60 * this.scaleFactor;
+           this.towerTooltip.buttons.fireRate.height = 25 * this.scaleFactor;
+        }
+        // Add range if it exists
+        if (this.towerTooltip.buttons.range) {
+             this.towerTooltip.buttons.range.width = 60 * this.scaleFactor;
+             this.towerTooltip.buttons.range.height = 25 * this.scaleFactor;
+         }
+
+        // Game Over Restart Button Position (center of canvas)
+        this.restartButton.width = 120 * this.scaleFactor;
+        this.restartButton.height = 40 * this.scaleFactor;
+        this.restartButton.x = this.canvas.width / 2 - this.restartButton.width / 2;
+        this.restartButton.y = this.canvas.height / 2 + 50 * this.scaleFactor; // Below GAME OVER text
+
+        // Recalculate paths for existing creeps (important after grid change)
+        // The new Pathfinding instance will use the new grid automatically
+        // this.pathfinding.notifyGridChange(); // REMOVED - Method doesn't exist
+    }
+
+    // *** New Method to Populate Crafting Buttons ***
+    populateCraftingMenu() {
+        if (!this.towerButtonsContainerElement || !this.assets) return;
+        this.towerButtonsContainerElement.innerHTML = ''; // Clear existing buttons
+
+        this.towerTypes.forEach((tower, index) => {
+            const button = document.createElement('button');
+            button.classList.add('crafting-button');
+            button.dataset.towerIndex = index; // Store index for listener
+
+            // Sprite Div
+            const spriteDiv = document.createElement('div');
+            spriteDiv.classList.add('tower-sprite');
+            
+            // *** Determine sprite key based on tower name override ***
+            let spriteKey;
+            const name = tower.name.toLowerCase();
+            if (['sentry', 'bouncer', 'rpg', 'sniper'].includes(name)) {
+                spriteKey = 'tower'; 
+            } else if (name === 'electricfence') {
+                spriteKey = 'wall';
+            } else {
+                spriteKey = tower.assetKey || name; // Default: use assetKey or lowercase name
+            }
+            // *** End override ***
+            
+            let spriteSrc = `assets/${spriteKey}.png`; // Construct path directly
+            
+            // Check if asset is loaded before setting background
+            if (this.assets.getImage(spriteKey)) { 
+                 spriteDiv.style.backgroundImage = `url('${spriteSrc}')`;
+            } else {
+                 console.warn(`Sprite image not loaded or key mismatch for: ${spriteKey} (Tower: ${tower.name})`);
+                 spriteDiv.style.backgroundColor = '#555'; // Placeholder background
+            }
+           
+            // Info Div
+            const infoDiv = document.createElement('div');
+            infoDiv.classList.add('tower-info');
+
+            // Tower Name Span
+            const nameSpan = document.createElement('span');
+            nameSpan.classList.add('tower-name');
+            nameSpan.textContent = tower.name;
+
+            // Tower Cost Span
+            const costSpan = document.createElement('span');
+            costSpan.classList.add('tower-cost');
+            const costText = document.createTextNode(`${tower.cost}`);
+             // Scrap Icon Img
+             const scrapIcon = document.createElement('img');
+             let scrapIconSrc = 'assets/scrap.png'; // Construct path directly
+             
+             // Check if scrap icon asset is loaded
+             if(this.assets.getImage('scrap')){
+                scrapIcon.src = scrapIconSrc;
+                scrapIcon.alt = 'Scrap';
+                costSpan.appendChild(scrapIcon); // Add icon before text
+             } else {
+                 console.warn("Scrap icon image not loaded");
+             }
+            costSpan.appendChild(costText); // Add cost text after icon
+
+            // Append spans to infoDiv
+            infoDiv.appendChild(nameSpan);
+            infoDiv.appendChild(costSpan);
+
+            // Append sprite and info to button
+            button.appendChild(spriteDiv);
+            button.appendChild(infoDiv);
+
+            // Append button to container
+            this.towerButtonsContainerElement.appendChild(button);
+        });
+    }
+    // *** End populateCraftingMenu ***
+
+    // *** New Method to Update Crafting Button States ***
+    updateCraftingButtonStates() {
+        if (!this.towerButtonsContainerElement) return;
+        const buttons = this.towerButtonsContainerElement.querySelectorAll('.crafting-button');
+        
+        buttons.forEach((button) => {
+            const index = parseInt(button.dataset.towerIndex);
+            const tower = this.towerTypes[index];
+
+            // Update disabled state
+            if (this.scraps < tower.cost) {
+                button.classList.add('disabled');
+                button.disabled = true; // Also set disabled property
+            } else {
+                button.classList.remove('disabled');
+                button.disabled = false;
+            }
+
+            // Update selected state
+            if (this.buyMode && this.selectedTowerType === index) {
+                button.classList.add('selected');
+            } else {
+                button.classList.remove('selected');
+            }
+        });
+    }
+     // *** End updateCraftingButtonStates ***
 
     // Lisätään funktio dialogin päivittämiseen
     updateDialogue(newText) {
@@ -427,6 +650,49 @@ class Game {
     }
 
     setupEventListeners() {
+        // *** Add listener for the HTML Next Wave button ***
+        if (this.nextWaveButtonElement) {
+            this.nextWaveButtonElement.addEventListener('click', () => {
+                // Only start wave if button is not disabled (which mirrors !this.waveActive)
+                if (!this.nextWaveButtonElement.disabled) {
+                    this.startNextWave();
+                }
+            });
+        }
+        // *** End Next Wave Listener ***
+
+        // *** Add listener for the HTML Scrap Mode button ***
+        if (this.scrapModeButtonElement) {
+            this.scrapModeButtonElement.addEventListener('click', () => {
+                this.scrapMode = !this.scrapMode; 
+                // Update the game state when scrap mode is toggled via HTML button
+                this.selectedTower = null; 
+                this.buyMode = false; 
+                // The active class is handled in the update loop
+                console.log(`Scrap mode toggled via HTML: ${this.scrapMode}`);
+            });
+        }
+        // *** End Scrap Mode Listener ***
+
+        // *** Add listener for the Crafting Button Container (Event Delegation) ***
+        if (this.towerButtonsContainerElement) {
+            this.towerButtonsContainerElement.addEventListener('click', (event) => {
+                const button = event.target.closest('.crafting-button');
+                if (button && !button.disabled) { // Check if a non-disabled button was clicked
+                    const index = parseInt(button.dataset.towerIndex);
+                    if (!isNaN(index) && index >= 0 && index < this.towerTypes.length) {
+                        this.selectedTowerType = index;
+                        this.buyMode = true;
+                        this.scrapMode = false;
+                        this.updateDialogue(this.towerComments[index] || "Selected item...");
+                        this.updateCraftingButtonStates(); // Update visual selection immediately
+                        console.log(`Selected tower type via HTML: ${this.towerTypes[index].name}`);
+                    }
+                }
+            });
+        }
+        // *** End Crafting Container Listener ***
+
         // Listen for clicks for tower placement and button presses
         this.canvas.addEventListener('click', (event) => {
             if (this.gameOver) {
@@ -446,13 +712,14 @@ class Game {
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
             
-            // Check if click hit Next Wave button
-            if (this.isPointInRect(x, y, this.nextWaveButton) && !this.waveActive) {
-                this.startNextWave();
-                return;
-            }
+            // Check if click hit Next Wave button (CANVAS - keep temporarily)
+            // if (this.isPointInRect(x, y, this.nextWaveButton) && !this.waveActive) {
+            //     this.startNextWave();
+            //     return;
+            // }
             
-            // Check if click hit Scrap Mode button
+            // Check if click hit Scrap Mode button (CANVAS - KEEP COMMENTED OUT)
+            /* // Commenting out canvas click check for Scrap button
             if (this.isPointInRect(x, y, this.scrapModeButton)) {
                 this.scrapMode = !this.scrapMode;
                 this.scrapModeButton.active = this.scrapMode;
@@ -460,6 +727,8 @@ class Game {
                 this.buyMode = false; // Exit buy mode when entering scrap mode
                 return;
             }
+            */
+            // --- End Canvas Scrap Button Check ---
             
             // Check dev menu buttons if visible
             if (this.devMenuVisible) {
@@ -519,10 +788,10 @@ class Game {
             // Check if click hit tower selection buttons
             for (let i = 0; i < this.towerTypes.length; i++) {
                 const buttonRect = {
-                    x: this.uiPanel.x + 15 * this.scaleFactor,
-                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Pienennetty väli 90 -> 70
-                    width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                    height: 60 * this.scaleFactor // Pienennetty korkeus 80 -> 60
+                    x: this.uiPanel.x + 10 * this.scaleFactor,
+                    y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Increased spacing slightly
+                    width: this.uiPanel.width - 20 * this.scaleFactor,
+                    height: 60 * this.scaleFactor // Increased height slightly
                 };
                 
                 if (this.isPointInRect(x, y, buttonRect)) {
@@ -637,10 +906,10 @@ class Game {
             if (!isOverButton) {
                 for (let i = 0; i < this.towerTypes.length; i++) {
                     const buttonRect = {
-                        x: this.uiPanel.x + 15 * this.scaleFactor,
-                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor,
-                        width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                        height: 60 * this.scaleFactor
+                        x: this.uiPanel.x + 10 * this.scaleFactor,
+                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Increased spacing slightly
+                        width: this.uiPanel.width - 20 * this.scaleFactor,
+                        height: 60 * this.scaleFactor // Increased height slightly
                     };
                     
                     if (this.isPointInRect(mouseX, mouseY, buttonRect)) {
@@ -823,7 +1092,7 @@ class Game {
         this.selectedTowerType = 0;
         
         // Reset grid
-        const cellSize = 20 * this.scaleFactor;
+        const cellSize = 16 * this.scaleFactor; // Changed base size from 20 to 16
         const cols = Math.floor(this.gameArea.width / cellSize);
         const rows = Math.floor(this.gameArea.height / cellSize);
 
@@ -1376,6 +1645,27 @@ class Game {
                 this.floatingTexts.splice(i, 1);
             }
         }
+
+         // *** Update HTML Next Wave button state ***
+         if (this.nextWaveButtonElement) {
+            // Disable the button if a wave is active
+            this.nextWaveButtonElement.disabled = this.waveActive;
+         }
+         // *** End Button State Update ***
+
+         // Update other HTML elements (stats, etc.) - placeholders for now
+         if (this.scrapsValueElement) this.scrapsValueElement.textContent = this.scraps;
+         if (this.waveValueElement) this.waveValueElement.textContent = this.waveNumber;
+
+         // Update scrap mode button appearance (using class for styling)
+          if (this.scrapModeButtonElement) {
+             if (this.scrapMode) {
+                 this.scrapModeButtonElement.classList.add('active');
+             } else {
+                 this.scrapModeButtonElement.classList.remove('active');
+             }
+         }
+         this.updateCraftingButtonStates(); // *** Call crafting button update ***
     }
 
     draw() {
@@ -1388,65 +1678,40 @@ class Game {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         // Draw stats panel background
-        this.ctx.fillStyle = '#222';
+        this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(this.statsPanel.x, this.statsPanel.y, this.statsPanel.width, this.statsPanel.height);
         
         // Draw game background
-        this.ctx.fillStyle = '#111';
+        this.ctx.fillStyle = '#0f0f0f';
         this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
-        // Luo UI-paneelin kuvio, jos sitä ei ole vielä luotu ja kuva on ladattu
-        if (!this.uiPanelPattern && this.assets.isReady()) {
-            const uiTabImg = this.assets.getImage('ui_tab');
-            // Varmista, että kuva on olemassa JA täysin ladattu (complete & has dimensions)
-            if (uiTabImg && uiTabImg.complete && uiTabImg.naturalWidth > 0) {
-                try {
-                    // --- Uusi skaalauslogiikka alkaa ---
-                    const panelWidth = this.uiPanel.width;
-                    const imgWidth = uiTabImg.naturalWidth;
-                    const imgHeight = uiTabImg.naturalHeight;
+        // Draw UI panel background with a solid color gradient (REMOVED - Handled by HTML/CSS)
+        /* // Commenting out UI Panel background drawing
+        const gradient = this.ctx.createLinearGradient(
+            this.uiPanel.x, 
+            this.uiPanel.y, 
+            this.uiPanel.x + this.uiPanel.width, 
+            this.uiPanel.y + this.uiPanel.height
+        );
+        gradient.addColorStop(0, '#1a1a1a');
+        gradient.addColorStop(0.5, '#1f1f1f');
+        gradient.addColorStop(1, '#1a1a1a');
+        this.ctx.fillStyle = gradient;
+        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
+        */
 
-                    // Laske skaalauskerroin ja skaalattu korkeus
-                    const scale = panelWidth / imgWidth;
-                    const scaledHeight = imgHeight * scale;
-
-                    // Luo offscreen canvas
-                    const offscreenCanvas = document.createElement('canvas');
-                    offscreenCanvas.width = panelWidth;
-                    offscreenCanvas.height = scaledHeight;
-                    const offscreenCtx = offscreenCanvas.getContext('2d');
-
-                    // Piirrä skaalattu kuva offscreen canvasiin
-                    offscreenCtx.drawImage(uiTabImg, 0, 0, panelWidth, scaledHeight);
-
-                    // Luo kuvio offscreen canvasista
-                    this.uiPanelPattern = this.ctx.createPattern(offscreenCanvas, 'repeat-y');
-                    // --- Uusi skaalauslogiikka päättyy ---
-                    
-                    console.log("UI Panel pattern created successfully (scaled)."); // Debug log
-                } catch (e) {
-                    console.error("Error creating UI panel pattern:", e); // Debug log for errors
-                    this.uiPanelPattern = null; // Varmista, että se on null jos luonti epäonnistuu
-                }
-            } else if (uiTabImg) {
-                 console.log("UI Tab image exists but is not yet complete/loaded."); // Debug log
-            } else {
-                 console.log("UI Tab image not found in assets."); // Debug log
-            }
-        }
-
-        // Draw UI panel background using the pattern if available
-        if (this.uiPanelPattern) {
-            this.ctx.fillStyle = this.uiPanelPattern;
-            // Käännetään konteksti väliaikaisesti, jotta kuvio piirtyy oikein paneelin yläreunasta alkaen
-            this.ctx.save();
-            this.ctx.translate(this.uiPanel.x, this.uiPanel.y);
-            this.ctx.fillRect(0, 0, this.uiPanel.width, this.uiPanel.height);
-            this.ctx.restore();
-        }
+        // Add a subtle border to separate game area and UI (REMOVED - Handled by HTML/CSS)
+        /* // Commenting out UI Panel border drawing
+        this.ctx.strokeStyle = '#2a2a2a';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.uiPanel.x, this.uiPanel.y);
+        this.ctx.lineTo(this.uiPanel.x, this.uiPanel.y + this.uiPanel.height);
+        this.ctx.stroke();
+        */
         
-        // Draw stats
-        this.drawStats();
+        // Draw stats (REMOVED - Handled by HTML)
+        // this.drawStats(); 
         
         // Draw grid (includes ground and nonground tiles)
         this.grid.draw(this.ctx);
@@ -1747,15 +2012,20 @@ class Game {
             this.ctx.restore();
         }
 
-        // Piirrä itse UI-elementit (napit, tekstit jne.)
-        this.drawUI();
-        
-        // Draw Dev Menu if visible
-        if (this.devMenuVisible) {
-            this.drawDevMenu();
+        // Restore clip to draw UI outside game area
+        this.ctx.restore();
+
+        // Draw damage flash effect
+        if (this.damageFlash.active) {
+            const alpha = this.damageFlash.duration / this.damageFlash.maxDuration * 0.5; // max 50% opacity
+            this.ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         }
-        
-        // Draw game over message
+
+        // --- Draw Canvas UI Elements (Temporary / Specific Cases) ---
+        // this.drawUI(); // REMOVED - All main UI elements are now HTML
+
+        // Draw Game Over screen if applicable
         if (this.gameOver) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -2022,269 +2292,6 @@ class Game {
 
         this.ctx.fillText(costTextString_r, costTextX_r, costTextY_r);
         this.ctx.textBaseline = 'alphabetic'; // Reset baseline
-    }
-
-    drawUI() {
-        // Draw scraps amount and wave number above crafting menu
-        const scrapTextY = this.uiPanel.y + 30 * this.scaleFactor;
-        const scrapAmountText = `${this.scraps}`;
-        const waveText = `WAVE: ${this.waveNumber}`;
-
-        // Set baseline and alignment for this section
-        this.ctx.textBaseline = 'middle';
-        this.ctx.textAlign = 'left';
-        this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`;
-
-        // Draw scrap icon first
-        let iconXEnd = this.uiPanel.x + 20 * this.scaleFactor;
-        if (this.assets.isReady()) {
-            const scrapImg = this.assets.getImage('scrap');
-            const scrapSize = 20 * this.scaleFactor;
-            const iconY = scrapTextY - scrapSize / 2;
-            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
-                scrapImg,
-                iconXEnd,
-                iconY,
-                scrapSize,
-                scrapSize,
-                false,
-                true
-            );
-            iconXEnd += drawnIconWidth + 5 * this.scaleFactor;
-        } else {
-            iconXEnd += 20 * this.scaleFactor + 5 * this.scaleFactor;
-        }
-
-        // Draw scrap amount text after icon
-        this.ctx.fillStyle = '#FFD700';
-        this.ctx.fillText(scrapAmountText, iconXEnd, scrapTextY);
-
-        // Draw wave text further to the right
-        const waveTextX = this.uiPanel.x + 120 * this.scaleFactor;
-        this.ctx.fillStyle = '#FFF';
-        this.ctx.fillText(waveText, waveTextX, scrapTextY);
-
-        // Reset baseline
-        this.ctx.textBaseline = 'alphabetic';
-
-        // Draw Next Wave button
-        if (!this.waveActive) {
-            this.ctx.fillStyle = '#4CAF50';
-        } else {
-            this.ctx.fillStyle = '#666666';
-        }
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
-            this.drawImageMaintainAspectRatio(
-                buttonImg,
-                this.nextWaveButton.x,
-                this.nextWaveButton.y,
-                this.nextWaveButton.width,
-                this.nextWaveButton.height
-            );
-            this.ctx.globalAlpha = 1;
-        } else {
-            this.ctx.fillRect(
-                this.nextWaveButton.x,
-                this.nextWaveButton.y, 
-                this.nextWaveButton.width, 
-                this.nextWaveButton.height
-            );
-        }
-            
-        // Draw button text
-        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
-        this.ctx.font = '20px "VT323", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            this.nextWaveButton.text,
-            this.nextWaveButton.x + this.nextWaveButton.width / 2,
-            this.nextWaveButton.y + this.nextWaveButton.height / 2
-        );
-            
-        // Draw Scrap Mode button
-        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.drawImageMaintainAspectRatio(
-                buttonImg,
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-            
-            // Draw highlight when active
-            if (this.scrapModeButton.active) {
-                this.ctx.strokeStyle = '#FF0000';
-                this.ctx.lineWidth = 3 * this.scaleFactor;
-                this.ctx.strokeRect(
-                    this.scrapModeButton.x,
-                    this.scrapModeButton.y, 
-                    this.scrapModeButton.width, 
-                    this.scrapModeButton.height
-                );
-            }
-        } else {
-            this.ctx.fillRect(
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-        }
-            
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(
-            this.scrapModeButton.text,
-            this.scrapModeButton.x + this.scrapModeButton.width/2,
-            this.scrapModeButton.y + this.scrapModeButton.height/2
-        );
-
-        // Tower shop section
-        this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`; // 20px -> 24px
-        this.ctx.fillStyle = '#FFF';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText('CRAFTING', this.uiPanel.x + 20 * this.scaleFactor, this.uiPanel.y + 80 * this.scaleFactor);
-        
-        // Draw tower selection buttons with sprite images
-        for (let i = 0; i < this.towerTypes.length; i++) {
-            const tower = this.towerTypes[i];
-            const buttonRect = {
-                x: this.uiPanel.x + 15 * this.scaleFactor,
-                y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Pienennetty väli 90 -> 70
-                width: this.uiPanel.width * this.scaleFactor - 30 * this.scaleFactor,
-                height: 60 * this.scaleFactor // Pienennetty korkeus 80 -> 60
-            };
-
-            // Draw button background with button2 image
-            if (this.assets.isReady()) {
-                const buttonImg = this.assets.getImage('button2');
-                const padding = 10 * this.scaleFactor;
-                this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                this.drawImageMaintainAspectRatio(
-                    buttonImg,
-                    buttonRect.x,
-                    buttonRect.y,
-                    buttonRect.width,
-                    buttonRect.height,
-                    false
-                );
-                this.ctx.globalAlpha = 1;
-            } else {
-                // Fallback to colored rectangle if image not loaded
-                this.ctx.fillStyle = this.selectedTowerType === i && this.buyMode ? '#444444' : '#333333';
-                this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                this.ctx.fillRect(buttonRect.x, buttonRect.y, buttonRect.width, buttonRect.height);
-                this.ctx.globalAlpha = 1;
-            }
-            
-            // Draw tower sprite
-            if (this.assets.isReady()) {
-                let img;
-                const iconSize = 40 * this.scaleFactor;
-                const iconX = buttonRect.x + 20 * this.scaleFactor;
-                const iconY = buttonRect.y + (buttonRect.height - iconSize) / 2;
-
-                if (tower.name === "Wall") {
-                    img = this.assets.getImage('wall');
-                    const wallIconSize = iconSize * 0.6;
-                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                    this.drawImageMaintainAspectRatio(
-                        img,
-                        iconX + (iconSize - wallIconSize) / 2, 
-                        iconY + (iconSize - wallIconSize) / 2, 
-                        wallIconSize, 
-                        wallIconSize
-                    );
-                    this.ctx.globalAlpha = 1;
-                } else if (tower.name === "ElectricFence") {
-                    img = this.assets.getImage('wall');
-                    const wallIconSize = iconSize * 0.6;
-                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                    this.drawImageMaintainAspectRatio(
-                        img,
-                        iconX + (iconSize - wallIconSize) / 2, 
-                        iconY + (iconSize - wallIconSize) / 2, 
-                        wallIconSize, 
-                        wallIconSize
-                    );
-                    this.ctx.globalAlpha = 1;
-                } else if (tower.name === "Scrapper") {
-                    img = this.assets.getImage('scrapper');
-                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                    this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize);
-                    this.ctx.globalAlpha = 1;
-                } else {
-                    img = this.assets.getImage('tower');
-                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
-                    this.drawImageMaintainAspectRatio(img, iconX, iconY, iconSize, iconSize, true);
-                    this.ctx.globalAlpha = 1;
-                }
-            }
-
-            // Draw tower name and cost
-            this.ctx.fillStyle = this.scraps >= tower.cost ? '#FFFFFF' : '#999999';
-            this.ctx.font = `bold ${18 * this.scaleFactor}px "VT323", monospace`;
-            this.ctx.textAlign = 'left';
-            const textStartX = buttonRect.x + 90 * this.scaleFactor;
-            this.ctx.fillText(tower.name, textStartX, buttonRect.y + 25 * this.scaleFactor);
-
-            // Draw cost with scrap icon
-            const costTextY = buttonRect.y + 48 * this.scaleFactor; // Base Y for cost text
-            const costTextString = `${tower.cost}`;
-            this.ctx.font = `${18 * this.scaleFactor}px "VT323", monospace`; // Set font before measuring
-            this.ctx.textAlign = 'left'; // Align text left
-            this.ctx.textBaseline = 'middle'; // Align text vertically to middle
-
-            let costIconX = textStartX; // Start icon where text starts
-            let costTextX = textStartX; // Default text start X
-
-            if (this.assets.isReady()) {
-                const scrapImg = this.assets.getImage('scrap');
-                const scrapSize = 15 * this.scaleFactor;
-                const iconY = costTextY - scrapSize / 2; // Align icon center to text middle
-                const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
-                    scrapImg,
-                    costIconX,
-                    iconY,
-                    scrapSize,
-                    scrapSize,
-                    false, true
-                );
-                costTextX = costIconX + drawnIconWidth + 5 * this.scaleFactor; // Set text X after icon
-            } else {
-                // If icon fails, still reserve some space (adjust as needed)
-                costTextX = costIconX + 15 * this.scaleFactor + 5 * this.scaleFactor;
-            }
-
-            // Draw cost text after potential icon
-            this.ctx.fillText(costTextString, costTextX, costTextY);
-            this.ctx.textBaseline = 'alphabetic'; // Reset baseline
-
-            // Draw hover tooltip if this tower is being hovered over
-            if (this.hoveredTowerType === i) {
-                // Tooltip poistettu, koska info näytetään nyt dialogilaatikossa
-            }
-
-            // Draw tower info if a tower is selected
-            if (this.selectedTower && !this.scrapMode) {
-                // Poistetaan wall ja scrapper kuvaukset kokonaan
-            }
-        }
-        
-        // Draw tower info if a tower is selected
-        if (this.selectedTower && !this.scrapMode) {
-            // Poistetaan wall ja scrapper kuvaukset kokonaan
-        }
     }
 
     drawStats() {

@@ -3,64 +3,146 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #1a1a1a;
+    background-color: #0a0a0a;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     min-height: 100vh;
     font-family: "VT323", monospace;
     font-size: 20px;
+    color: #eee;
+}
+
+#game-container {
+    position: relative;
+    display: flex;
+    gap: 0;
+    background-color: #111;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+    border: 1px solid #2a2a2a;
 }
 
 #gameCanvas {
-    border: 2px solid #333;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    display: block;
     background-color: #000;
 }
 
-#preload {
-    display: none;
+#right-panel {
+    width: 300px;
+    background-color: #1a1a1a;
+    border-left: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    box-sizing: border-box;
+    height: 100%;
 }
 
+#dialogue-panel {
+    background-color: rgba(20, 20, 20, 0.9);
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#dialogue-avatar {
+    width: 64px;
+    height: 64px;
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    margin-bottom: 0;
+    background-image: url('assets/player.png');
+    background-size: cover;
+    background-position: center;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#dialogue-text {
+    width: 100%;
+    padding: 10px;
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    color: #90EE90;
+    font-family: 'VT323', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-y: auto;
+    box-sizing: border-box;
+    white-space: pre-line;
+    text-align: center;
+    min-height: 40px;
+    border-radius: 8px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+#dialogue-text .stats {
+    font-size: 14px;
+    color: #FFD700;
+    font-weight: bold;
+    margin-top: 4px;
+    display: block;
+}
+
+/* Game over screen styles */
 #gameOver {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.9);
+    background-color: rgba(0, 0, 0, 0.95);
     padding: 40px;
-    border-radius: 10px;
+    border-radius: 12px;
     text-align: center;
     color: white;
     display: none;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
 }
 
 #gameOver h2 {
     font-size: 36px;
     margin-bottom: 20px;
-    color: #ff0000;
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
 }
 
 #gameOver p {
     font-size: 24px;
     margin-bottom: 30px;
+    color: #eee;
 }
 
 #restartButton {
-    background-color: #4CAF50;
+    background: linear-gradient(to bottom, #3a8a3e, #357a38);
     color: white;
     border: none;
     padding: 15px 30px;
     font-size: 20px;
     cursor: pointer;
-    border-radius: 5px;
-    transition: background-color 0.3s;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 1px solid #2a2a2a;
 }
 
 #restartButton:hover {
-    background-color: #45a049;
+    background: linear-gradient(to bottom, #357a38, #306a33);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
+/* Loading screen styles */
 #loadingScreen {
     position: fixed;
     top: 0;
@@ -79,70 +161,157 @@ body {
 #loadingScreen h2 {
     font-size: 36px;
     margin-bottom: 30px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+    color: #eee;
 }
 
 #loadingBar {
     width: 300px;
     height: 20px;
-    background-color: #333;
+    background-color: #1a1a1a;
     border-radius: 10px;
     overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid #2a2a2a;
 }
 
 #loadingProgress {
     width: 0%;
     height: 100%;
-    background-color: #4CAF50;
-    transition: width 0.3s;
+    background: linear-gradient(to right, #3a8a3e, #357a38);
+    transition: width 0.3s ease;
 }
 
+/* Panel Section Title Styles */
+.panel-title {
+    font-size: 16px;
+    color: #eee;
+    text-align: center;
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #3a3a3a;
+    text-transform: uppercase;
+}
+
+/* Crafting Area Styles */
+#crafting-area {
+    margin-bottom: 20px;
+}
+
+#tower-buttons-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Stats Area Styles */
+#stats-area {
+    margin-bottom: 0;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+}
+
+#stats-area .panel-title {
+    display: none;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    color: #aaa;
+    font-size: 13px;
+}
+
+.stat-value {
+    color: #FFD700;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Controls Area Styles */
+#controls-area {
+    margin-top: auto;
+    display: flex;
+    gap: 8px;
+}
+
+.control-button {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 13px;
+    font-family: 'VT323', monospace;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid #2a2a2a;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+#next-wave-button {
+    background: linear-gradient(to bottom, #3a8a3e, #357a38);
+    color: white;
+}
+
+#next-wave-button:hover {
+    background: linear-gradient(to bottom, #357a38, #306a33);
+}
+
+#next-wave-button:disabled {
+    background: linear-gradient(to bottom, #2a2a2a, #252525);
+    color: #666;
+    cursor: not-allowed;
+}
+
+#scrap-mode-button {
+    background: linear-gradient(to bottom, #2a2a2a, #252525);
+    color: white;
+}
+
+#scrap-mode-button:hover {
+    background: linear-gradient(to bottom, #3a3a3a, #353535);
+}
+
+#scrap-mode-button.active {
+    background: linear-gradient(to bottom, #ff4444, #cc3333);
+    border-color: #aa2222;
+}
+
+#scrap-mode-button.active:hover {
+    background: linear-gradient(to bottom, #cc3333, #aa2222);
+}
+
+/* Responsive styles */
 @media (max-width: 1200px) {
-    #gameCanvas {
+    #game-container {
+        flex-direction: column-reverse;
         width: 90vw;
+    }
+    
+    #gameCanvas {
+        width: 100%;
         height: auto;
     }
     
-    #gameOver {
-        width: 80%;
-        max-width: 600px;
+    #right-panel {
+        width: 100%;
+        height: auto;
+        border-left: none;
+        border-top: 1px solid #2a2a2a;
+        margin-bottom: 0;
     }
-    
-    #gameOver h2 {
-        font-size: 30px;
-    }
-    
-    #gameOver p {
-        font-size: 20px;
-    }
-    
-    #restartButton {
-        padding: 12px 24px;
-        font-size: 18px;
-    }
-    
-    #loadingScreen h2 {
-        font-size: 30px;
-    }
-    
-    #loadingBar {
-        width: 250px;
+
+    #controls-area {
+        margin-top: 15px;
     }
 }
 
 @media (max-width: 768px) {
-    #gameOver h2 {
-        font-size: 24px;
-    }
-    
-    #gameOver p {
-        font-size: 16px;
-    }
-    
-    #restartButton {
-        padding: 10px 20px;
-        font-size: 16px;
-    }
-    
     #loadingScreen h2 {
         font-size: 24px;
     }
@@ -150,57 +319,117 @@ body {
     #loadingBar {
         width: 200px;
     }
+    
+    #right-panel {
+        padding: 10px;
+    }
+
+    .panel-title {
+        font-size: 18px;
+    }
+
+    #dialogue-avatar {
+        width: 50px;
+        height: 50px;
+    }
+    
+    #dialogue-text {
+        font-size: 14px;
+        padding: 8px;
+    }
+
+    .crafting-button {
+        height: 60px;
+    }
+
+    .control-button {
+        font-size: 14px;
+        padding: 10px 8px;
+    }
 }
 
-/* --- Uudet tyylit dialogipaneelille --- */
-#dialogue-panel {
-    position: absolute;
-    bottom: 0;
-    left: 0;
+/* Crafting button styles */
+.crafting-button {
+    position: relative;
     width: 100%;
+    height: 52px;
+    margin-bottom: 8px;
+    background: linear-gradient(to bottom, #2a2a2a, #252525);
+    border: 1px solid #333;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     display: flex;
-    align-items: stretch;
-    padding: 5px;
-    background-color: #111;
-    border-top: 3px solid #444;
+    align-items: center;
+    padding: 8px;
     box-sizing: border-box;
-    z-index: 10;
-    height: 200px;
 }
 
-#dialogue-avatar {
-    width: 140px;
-    height: 180px;
-    flex-shrink: 0;
-    background-color: #333;
-    border: 2px solid #555;
-    margin-right: 10px;
-    background-image: url('assets/player.png');
-    background-size: cover;
+.crafting-button:hover {
+    background: linear-gradient(to bottom, #3a3a3a, #353535);
+    border-color: #444;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.crafting-button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.crafting-button.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.crafting-button.disabled:hover {
+    background: linear-gradient(to bottom, #2a2a2a, #252525);
+    border-color: #333;
+    transform: none;
+    box-shadow: none;
+}
+
+.crafting-button .tower-sprite {
+    width: 36px;
+    height: 36px;
+    margin-right: 8px;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
 }
 
-#dialogue-text {
-    flex-grow: 1;
-    padding: 15px;
-    background-color: #1a2a1a;
-    border: 2px solid #3a4a3a;
-    color: #90EE90;
-    font-family: 'VT323', monospace;
-    font-size: 24px;
-    line-height: 1.3;
-    overflow-y: auto;
-    height: 100%;
-    box-sizing: border-box;
-    white-space: pre-line;
+.crafting-button .tower-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
-/* Lisätään tyyli teknisille tiedoille */
-#dialogue-text .stats {
-    font-size: 28px;
-    color: #FFD700;
-    font-weight: bold;
-    margin-top: 5px;
-    display: block;
+.crafting-button .tower-name {
+    font-size: 13px;
+    color: #fff;
+    margin-bottom: 3px;
 }
-/* --- Dialogipaneelin tyylien loppu --- */
+
+.crafting-button .tower-cost {
+    font-size: 11px;
+    color: #FFD700;
+    display: flex;
+    align-items: center;
+}
+
+.crafting-button .tower-cost img {
+    width: 13px;
+    height: 13px;
+    margin-right: 3px;
+}
+
+/* Selected state for crafting buttons */
+.crafting-button.selected {
+    background: linear-gradient(to bottom, #3a8a3e, #357a38);
+    border-color: #4a4a4a;
+}
+
+.crafting-button.selected:hover {
+    background: linear-gradient(to bottom, #357a38, #306a33);
+}

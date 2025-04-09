@@ -76,6 +76,9 @@ export class MapGenerator {
         
         // Varmista, että polut ovat edelleen käytettävissä
         this.ensurePathsAreValid(map);
+
+        // Poista saavuttamattomat lattia-alueet
+        this.removeDeadPockets(map);
         
         return map;
     }
@@ -699,5 +702,62 @@ export class MapGenerator {
         return Math.min(...corners.map(corner => 
             Math.sqrt(Math.pow(x - corner.x, 2) + Math.pow(y - corner.y, 2))
         ));
+    }
+
+    /**
+     * Poistaa kartalta "kuolleet taskut" eli lattialueet, joihin ei pääse käsiksi mistään aloituspisteestä.
+     * Muuttaa tällaiset alueet esteiksi.
+     * @param {Array} map - Kartta, jota muokataan
+     */
+    removeDeadPockets(map) {
+        const reachable = Array(this.height).fill(null).map(() => Array(this.width).fill(false));
+        const queue = [];
+
+        // Lisää kaikki aloituspisteet jonoon ja merkitse ne saavutettaviksi
+        for (const startPoint of this.startPoints) {
+            if (this.isValidPosition(startPoint.x, startPoint.y) && map[startPoint.y][startPoint.x] !== this.TILE_TYPES.OBSTACLE) {
+                if (!reachable[startPoint.y][startPoint.x]) {
+                     queue.push({ x: startPoint.x, y: startPoint.y });
+                     reachable[startPoint.y][startPoint.x] = true;
+                }
+            }
+        }
+
+        // Suorita flood fill (Breadth-First Search) löytääksesi kaikki saavutettavat lattiaruudut
+        while (queue.length > 0) {
+            const current = queue.shift();
+
+            const directions = [
+                { x: 0, y: -1 }, { x: 1, y: 0 },
+                { x: 0, y: 1 }, { x: -1, y: 0 }
+            ];
+
+            for (const dir of directions) {
+                const nx = current.x + dir.x;
+                const ny = current.y + dir.y;
+
+                if (this.isValidPosition(nx, ny) && 
+                    map[ny][nx] !== this.TILE_TYPES.OBSTACLE && 
+                    !reachable[ny][nx]) 
+                {
+                    reachable[ny][nx] = true;
+                    queue.push({ x: nx, y: ny });
+                }
+            }
+        }
+
+        // Muuta kaikki saavuttamattomat lattiaruudut esteiksi
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                if (map[y][x] === this.TILE_TYPES.FLOOR && !reachable[y][x]) {
+                    map[y][x] = this.TILE_TYPES.OBSTACLE;
+                }
+                // Muuta myös generoinnin aikaiset PATH-ruudut takaisin FLOOR-ruuduiksi
+                // Koska ne ovat varmasti saavutettavia.
+                else if (map[y][x] === this.TILE_TYPES.PATH) {
+                     map[y][x] = this.TILE_TYPES.FLOOR;
+                 }
+            }
+        }
     }
 } 
