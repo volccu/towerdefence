@@ -1,5 +1,5 @@
 export class Creep {
-    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false, isMiniBoss = false, type = 'normal') {
+    constructor(game, x, y, health = 100, speed = 0.5, color = '#FF5500', radius = 8, isBoss = false, isMiniBoss = false, type = 'normal', willSplit = false) {
         this.game = game;
         this.x = x;
         this.y = y;
@@ -11,6 +11,7 @@ export class Creep {
         this.isBoss = isBoss;
         this.isMiniBoss = isMiniBoss;
         this.type = type;
+        this.willSplit = willSplit && type === 'splitter';
         this.isAlive = true;
         this.reachedEnd = false;
         this.pathIndex = 0;
@@ -32,12 +33,12 @@ export class Creep {
                 this.health *= 2;
                 this.color = '#0000FF';
                 this.attackDamage = 15;
+                this.radius = 12 * this.game.scaleFactor;
                 break;
             case 'splitter':
                 this.health *= 0.7;
                 this.color = '#FF00FF';
                 this.attackDamage = 8;
-                this.willSplit = true;
                 break;
             case 'boss':
                 this.health *= 3;
@@ -277,6 +278,12 @@ export class Creep {
                 creepImg = this.game.assets.getImage('boss');
             } else if (this.isMiniBoss) {
                 creepImg = this.game.assets.getImage('miniboss');
+            } else if (this.type === 'fast') {
+                creepImg = this.game.assets.getImage('runner');
+            } else if (this.type === 'splitter') {
+                creepImg = this.game.assets.getImage('splitter');
+            } else if (this.type === 'tank') {
+                creepImg = this.game.assets.getImage('tank');
             } else {
                 creepImg = this.game.assets.getImage('creep');
             }
@@ -348,7 +355,7 @@ export class Creep {
         
         // Splitter creep jakautuu pienemmiksi creeps
         if (this.type === 'splitter' && this.willSplit) {
-            const splitCount = 3;
+            const splitCount = 2;
             const splitHealth = Math.floor(this.maxHealth / splitCount);
             const splitRadius = this.radius * 0.6;
             
@@ -367,7 +374,8 @@ export class Creep {
                     splitRadius,
                     false,
                     false,
-                    'normal'
+                    'splitter',
+                    false // Asetetaan willSplit falseksi pienille splittereille
                 );
                 this.game.creeps.push(splitCreep);
             }

@@ -60,6 +60,9 @@ class Game {
         this.assets.loadImage('miniboss', 'assets/miniboss.png');
         this.assets.loadImage('boss', 'assets/boss.png');
         this.assets.loadImage('ui_tab', 'assets/tab.png');
+        this.assets.loadImage('runner', 'assets/runner.png');
+        this.assets.loadImage('splitter', 'assets/splitter.png');
+        this.assets.loadImage('tank', 'assets/tank.png');
         
         // Resoluution skaalaustekijä (1.5 = 50% suurempi)
         this.scaleFactor = 1.5;
@@ -116,7 +119,7 @@ class Game {
         
         // Game state
         this.playerLives = 10;
-        this.scraps = 500; // Starting scraps
+        this.scraps = 250; // Starting scraps
         this.waveReached = 0; // Track highest wave reached
         this.gameOver = false;
         this.debugMode = false;
@@ -143,7 +146,7 @@ class Game {
             {
                 name: "Sentry",
                 description: "Tehokas puolustusjärjestelmä",
-                cost: 40,
+                cost: 60,
                 damage: 10,
                 range: 150 * this.scaleFactor,
                 fireRate: 1.5,
@@ -155,7 +158,7 @@ class Game {
             {
                 name: "Bouncer",
                 description: "Ammu kimpoileva ammus joka vahingoittaa useita vihollisia",
-                cost: 60,
+                cost: 90,
                 damage: 15,
                 range: 150 * this.scaleFactor,
                 fireRate: 0.8,
@@ -166,7 +169,7 @@ class Game {
             {
                 name: "RPG",
                 description: "Ammu räjähtävä ammus joka vahingoittaa kaikkia lähellä olevia vihollisia",
-                cost: 80,
+                cost: 120,
                 damage: 25,
                 range: 120 * this.scaleFactor,
                 fireRate: 0.5,
@@ -178,7 +181,7 @@ class Game {
             {
                 name: "Sniper",
                 description: "Tarkka-ampuja joka osuu kaikkialle kartalle",
-                cost: 120,
+                cost: 180,
                 damage: 50,
                 range: 9999 * this.scaleFactor, // Käytännössä ääretön kantama
                 fireRate: 0.2,
@@ -188,7 +191,7 @@ class Game {
             {
                 name: "Wall",
                 description: "Ohjaa viholliset haluamaasi reittiä",
-                cost: 5,
+                cost: 8,
                 damage: 0,
                 range: 0,
                 fireRate: 0,
@@ -198,7 +201,7 @@ class Game {
             {
                 name: "ElectricFence",
                 description: "Sähköaita joka vahingoittaa lähellä olevia vihollisia. Vahingoittaa kaikkia vihollisia yhden ruudun etäisyydellä.",
-                cost: 15,
+                cost: 25,
                 damage: 2,
                 range: 40 * this.scaleFactor,
                 fireRate: 2,
@@ -209,7 +212,7 @@ class Game {
             {
                 name: "Scrapper",
                 description: "Kerää ja prosessoi romua automaattisesti",
-                cost: 100,
+                cost: 150,
                 damage: 0,
                 range: 0,
                 fireRate: 0,
@@ -217,7 +220,7 @@ class Game {
                 strokeColor: "#B8860B",
                 isScrapper: true,
                 scrapRate: 1,
-                scrapInterval: 5000 // 5 seconds
+                scrapInterval: 8000 // 8 seconds
             }
         ];
         this.selectedTowerType = 0;
@@ -267,17 +270,17 @@ class Game {
         
         // UI Buttons (now in UI panel)
         this.nextWaveButton = {
-            x: this.uiPanel.x + 10 * this.scaleFactor, // Pienennetty padding 20 -> 10
-            y: this.uiPanel.y + this.uiPanel.height - 60 * this.scaleFactor,
-            width: 85 * this.scaleFactor, // Kavennettu 120 -> 85
+            x: this.uiPanel.x + 10 * this.scaleFactor,
+            y: this.uiPanel.y + 650 * this.scaleFactor, // Moved further down below all tower buttons
+            width: 85 * this.scaleFactor,
             height: 40 * this.scaleFactor,
             text: "NEXT WAVE"
         };
         
         this.scrapModeButton = {
-            x: this.uiPanel.x + 105 * this.scaleFactor, // Päivitetty sijainti
-            y: this.uiPanel.y + this.uiPanel.height - 60 * this.scaleFactor,
-            width: 85 * this.scaleFactor, // Kavennettu 120 -> 85
+            x: this.uiPanel.x + 105 * this.scaleFactor,
+            y: this.uiPanel.y + 650 * this.scaleFactor, // Moved further down below all tower buttons
+            width: 85 * this.scaleFactor,
             height: 40 * this.scaleFactor,
             text: "SCRAP",
             active: false
@@ -653,20 +656,31 @@ class Game {
                             infoText = `Basic defense turret. Not much, but it gets the job done.\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec</span>`;
                         } else if (tower.name === "Bouncer") {
                             infoText = `Experimental ricochet technology. Each shot is a gamble, but when it works...\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nBounces: ${tower.maxBounces}\nSpeed: ${tower.fireRate}/sec</span>`;
-                        } else if (tower.name === "Wall") {
-                            infoText = `Just a wall. Sometimes the simplest solutions are the best ones.\n\n<span class="stats">Durability: High\nFunction: Blocks enemy path</span>`;
-                        } else if (tower.name === "Scrapper") {
-                            infoText = `Salvaged resource collector. Keep the supplies flowing.\n\n<span class="stats">Generation: +${tower.scrapRate} scrap\nInterval: ${tower.scrapInterval/1000} seconds\nRequires: Active wave</span>`;
                         } else if (tower.name === "RPG") {
                             infoText = `Area denial weapon. Make them regret clustering together.\n\n<span class="stats">Direct Hit: ${tower.damage}\nRange: ${tower.range}\nBlast Damage: ${tower.explosionDamage}\nBlast Radius: ${tower.explosionRadius}</span>`;
                         } else if (tower.name === "Sniper") {
                             infoText = `Long-range precision. One shot should be enough.\n\n<span class="stats">Damage: ${tower.damage}\nRange: Unlimited\nSpeed: ${tower.fireRate}/sec</span>`;
+                        } else if (tower.name === "Wall") {
+                            infoText = `Just a wall. Sometimes the simplest solutions are the best ones.\n\n<span class="stats">Durability: High\nFunction: Blocks enemy path</span>`;
                         } else if (tower.name === "ElectricFence") {
                             infoText = `Electric fence that damages nearby enemies. Perfect for chokepoints.\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec</span>`;
+                        } else if (tower.name === "Scrapper") {
+                            infoText = `Salvaged resource collector. Keep the supplies flowing.\n\n<span class="stats">Generation: +${tower.scrapRate} scrap\nInterval: ${tower.scrapInterval/1000} seconds\nRequires: Active wave</span>`;
                         }
                         
                         // Päivitä dialogiteksti ja käsittele HTML
                         if (this.dialogueTextElement) {
+                            // Clear any existing typing animation
+                            if (this.typingInterval) {
+                                clearInterval(this.typingInterval);
+                                this.typingInterval = null;
+                            }
+                            // Clear any existing clear timeout
+                            if (this.dialogueClearTimeout) {
+                                clearTimeout(this.dialogueClearTimeout);
+                                this.dialogueClearTimeout = null;
+                            }
+                            // Update the text immediately
                             this.dialogueTextElement.innerHTML = infoText;
                         }
                         
@@ -750,8 +764,10 @@ class Game {
             // Prevent default context menu
             event.preventDefault();
             
-            // Exit buy mode
+            // Exit buy mode and scrap mode
             this.buyMode = false;
+            this.scrapMode = false;
+            this.scrapModeButton.active = false;
             // Peruuta poistoajastin ja tyhjennä dialogi
             if (this.dialogueClearTimeout) {
                 clearTimeout(this.dialogueClearTimeout);
@@ -769,9 +785,11 @@ class Game {
                 this.debugMode = !this.debugMode;
             }
             
-            // Exit buy mode on Escape key
+            // Exit buy mode and scrap mode on Escape key
             if (event.key === 'Escape') {
                 this.buyMode = false;
+                this.scrapMode = false;
+                this.scrapModeButton.active = false;
                 // Peruuta poistoajastin ja tyhjennä dialogi
                 if (this.dialogueClearTimeout) {
                     clearTimeout(this.dialogueClearTimeout);
@@ -794,7 +812,7 @@ class Game {
         // Reset game state
         this.gameOver = false;
         this.playerLives = 10;
-        this.scraps = 500; // 500 scraps
+        this.scraps = 250; // 250 scraps
         this.towers = [];
         this.creeps = [];
         this.waveNumber = 0;
@@ -1226,7 +1244,8 @@ class Game {
             radius,
             creepType.type === 'boss',
             creepType.type === 'miniBoss',
-            creepType.type
+            creepType.type,
+            creepType.type === 'splitter' // Asetetaan willSplit true splitterille
         );
         
         this.creeps.push(creep);
@@ -1271,7 +1290,7 @@ class Game {
                 } else {
                     // Creep was killed - give scraps
                     // Improved economy - more scraps for later waves
-                    const reward = 15 + Math.floor(this.waveNumber * 1.5);
+                    const reward = 5 + Math.floor(this.waveNumber * 0.8);
                     this.scraps += reward;
                     // Show floating text for scrap reward
                     this.addFloatingText(
@@ -1289,7 +1308,7 @@ class Game {
         if (this.waveActive && this.creepsToSpawn <= 0 && this.creeps.length === 0) {
             this.waveActive = false;
             // Bonus scraps at end of wave
-            const waveBonus = 20 + this.waveNumber * 10;
+            const waveBonus = 10 + this.waveNumber * 5;
             this.scraps += waveBonus;
         }
         
@@ -2017,23 +2036,22 @@ class Game {
         this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`;
 
         // Draw scrap icon first
-        let iconXEnd = this.uiPanel.x + 20 * this.scaleFactor; // Keep track of where icon ends
+        let iconXEnd = this.uiPanel.x + 20 * this.scaleFactor;
         if (this.assets.isReady()) {
             const scrapImg = this.assets.getImage('scrap');
             const scrapSize = 20 * this.scaleFactor;
-            const iconY = scrapTextY - scrapSize / 2; // Align icon center with text center
+            const iconY = scrapTextY - scrapSize / 2;
             const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(
                 scrapImg,
                 iconXEnd,
                 iconY,
                 scrapSize,
                 scrapSize,
-                false, // Don't center horizontally within target rect
-                true // Center vertically within target rect (implicitly done by iconY calculation)
+                false,
+                true
             );
-            iconXEnd += drawnIconWidth + 5 * this.scaleFactor; // Add padding after icon
+            iconXEnd += drawnIconWidth + 5 * this.scaleFactor;
         } else {
-            // Reserve space even if icon doesn't load
             iconXEnd += 20 * this.scaleFactor + 5 * this.scaleFactor;
         }
 
@@ -2048,6 +2066,88 @@ class Game {
 
         // Reset baseline
         this.ctx.textBaseline = 'alphabetic';
+
+        // Draw Next Wave button
+        if (!this.waveActive) {
+            this.ctx.fillStyle = '#4CAF50';
+        } else {
+            this.ctx.fillStyle = '#666666';
+        }
+        
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
+            this.drawImageMaintainAspectRatio(
+                buttonImg,
+                this.nextWaveButton.x,
+                this.nextWaveButton.y,
+                this.nextWaveButton.width,
+                this.nextWaveButton.height
+            );
+            this.ctx.globalAlpha = 1;
+        } else {
+            this.ctx.fillRect(
+                this.nextWaveButton.x,
+                this.nextWaveButton.y, 
+                this.nextWaveButton.width, 
+                this.nextWaveButton.height
+            );
+        }
+            
+        // Draw button text
+        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
+        this.ctx.font = '20px "VT323", monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            this.nextWaveButton.text,
+            this.nextWaveButton.x + this.nextWaveButton.width / 2,
+            this.nextWaveButton.y + this.nextWaveButton.height / 2
+        );
+            
+        // Draw Scrap Mode button
+        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
+        
+        // Draw button background with image
+        if (this.assets.isReady()) {
+            const buttonImg = this.assets.getImage('button');
+            this.drawImageMaintainAspectRatio(
+                buttonImg,
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+            
+            // Draw highlight when active
+            if (this.scrapModeButton.active) {
+                this.ctx.strokeStyle = '#FF0000';
+                this.ctx.lineWidth = 3 * this.scaleFactor;
+                this.ctx.strokeRect(
+                    this.scrapModeButton.x,
+                    this.scrapModeButton.y, 
+                    this.scrapModeButton.width, 
+                    this.scrapModeButton.height
+                );
+            }
+        } else {
+            this.ctx.fillRect(
+                this.scrapModeButton.x,
+                this.scrapModeButton.y, 
+                this.scrapModeButton.width, 
+                this.scrapModeButton.height
+            );
+        }
+            
+        // Draw button text
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(
+            this.scrapModeButton.text,
+            this.scrapModeButton.x + this.scrapModeButton.width/2,
+            this.scrapModeButton.y + this.scrapModeButton.height/2
+        );
 
         // Tower shop section
         this.ctx.font = `bold ${24 * this.scaleFactor}px "VT323", monospace`; // 20px -> 24px
@@ -2095,6 +2195,18 @@ class Game {
                 const iconY = buttonRect.y + (buttonRect.height - iconSize) / 2;
 
                 if (tower.name === "Wall") {
+                    img = this.assets.getImage('wall');
+                    const wallIconSize = iconSize * 0.6;
+                    this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
+                    this.drawImageMaintainAspectRatio(
+                        img,
+                        iconX + (iconSize - wallIconSize) / 2, 
+                        iconY + (iconSize - wallIconSize) / 2, 
+                        wallIconSize, 
+                        wallIconSize
+                    );
+                    this.ctx.globalAlpha = 1;
+                } else if (tower.name === "ElectricFence") {
                     img = this.assets.getImage('wall');
                     const wallIconSize = iconSize * 0.6;
                     this.ctx.globalAlpha = this.scraps >= tower.cost ? 1 : 0.5;
@@ -2173,90 +2285,6 @@ class Game {
         if (this.selectedTower && !this.scrapMode) {
             // Poistetaan wall ja scrapper kuvaukset kokonaan
         }
-
-        // Draw Next Wave button
-            if (!this.waveActive) {
-            this.ctx.fillStyle = '#4CAF50';
-            } else {
-            this.ctx.fillStyle = '#666666';
-        }
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.ctx.globalAlpha = this.waveActive ? 0.5 : 1;
-            this.drawImageMaintainAspectRatio(
-                buttonImg,
-                this.nextWaveButton.x,
-                this.nextWaveButton.y,
-                this.nextWaveButton.width,
-                this.nextWaveButton.height
-            );
-            this.ctx.globalAlpha = 1;
-        } else {
-            // Fallback to rectangle if image not loaded
-            this.ctx.fillRect(
-                this.nextWaveButton.x,
-                this.nextWaveButton.y, 
-                this.nextWaveButton.width, 
-                this.nextWaveButton.height
-            );
-        }
-            
-            // Draw button text
-        this.ctx.fillStyle = this.waveActive ? '#999999' : '#FFFFFF';
-            this.ctx.font = '20px "VT323", monospace'; // 16px -> 20px
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(
-                this.nextWaveButton.text,
-                this.nextWaveButton.x + this.nextWaveButton.width / 2,
-                this.nextWaveButton.y + this.nextWaveButton.height / 2
-            );
-            
-        // Draw Scrap Mode button
-        this.ctx.fillStyle = this.scrapModeButton.active ? '#FF4444' : '#666666';
-        
-        // Draw button background with image
-        if (this.assets.isReady()) {
-            const buttonImg = this.assets.getImage('button');
-            this.drawImageMaintainAspectRatio(
-                buttonImg,
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-            
-            // Draw highlight when active
-            if (this.scrapModeButton.active) {
-                this.ctx.strokeStyle = '#FF0000';
-                this.ctx.lineWidth = 3 * this.scaleFactor;
-                this.ctx.strokeRect(
-                    this.scrapModeButton.x,
-                    this.scrapModeButton.y, 
-                    this.scrapModeButton.width, 
-                    this.scrapModeButton.height
-                );
-            }
-        } else {
-            // Fallback to rectangle if image not loaded
-            this.ctx.fillRect(
-                this.scrapModeButton.x,
-                this.scrapModeButton.y, 
-                this.scrapModeButton.width, 
-                this.scrapModeButton.height
-            );
-        }
-            
-            // Draw button text
-            this.ctx.fillStyle = '#FFFFFF';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(
-            this.scrapModeButton.text,
-            this.scrapModeButton.x + this.scrapModeButton.width/2,
-            this.scrapModeButton.y + this.scrapModeButton.height/2
-        );
     }
 
     drawStats() {

@@ -6,7 +6,7 @@ body {
     background-color: #1a1a1a;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     font-family: "VT323", monospace;
     font-size: 20px;
@@ -155,27 +155,27 @@ body {
 /* --- Uudet tyylit dialogipaneelille --- */
 #dialogue-panel {
     position: absolute;
-    bottom: -190px;
+    bottom: 0;
     left: 0;
     width: 100%;
     display: flex;
-    align-items: stretch; /* Muutettu center -> stretch */
+    align-items: stretch;
     padding: 5px;
-    background-color: #111; /* Tummempi tausta */
-    border-top: 3px solid #444; /* Selkeämpi reunus */
-    box-sizing: border-box; /* Varmistaa, että padding ja border sisältyvät leveyteen */
+    background-color: #111;
+    border-top: 3px solid #444;
+    box-sizing: border-box;
     z-index: 10;
-    height: 200px; /* Lisätty kiinteä korkeus */
+    height: 200px;
 }
 
 #dialogue-avatar {
     width: 140px;
-    height: 180px; /* Korkeus vastaamaan paneelin korkeutta - padding */
+    height: 180px;
     flex-shrink: 0;
-    background-color: #333; /* Fallback-väri */
+    background-color: #333;
     border: 2px solid #555;
     margin-right: 10px;
-    background-image: url('assets/player.png'); /* Lisätty taustakuva */
+    background-image: url('assets/player.png');
     background-size: cover;
     background-position: center;
 }
@@ -201,5 +201,6 @@ body {
     color: #FFD700;
     font-weight: bold;
     margin-top: 5px;
+    display: block;
 }
 /* --- Dialogipaneelin tyylien loppu --- */
