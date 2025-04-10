@@ -150,7 +150,7 @@ export class Creep {
         if (homePointDistance < this.game.homePoint.radius + this.radius) {
             this.reachedEnd = true;
             this.isAlive = false;
-            return; // Lives are reduced in Game class
+            // Don't return here, let the creep reach the home point
         }
 
         // Jos meillä on polku, käytä sitä ensisijaisesti
@@ -313,7 +313,7 @@ export class Creep {
         
         // Draw health bar only if damaged or boss/miniboss
         if (this.isDamaged || this.isBoss || this.isMiniBoss) {
-            const healthBarWidth = this.radius * 2;
+            const healthBarWidth = 16 * this.game.scaleFactor; // Fixed width instead of radius-based
             const healthBarHeight = 4;
             const healthBarX = this.x - healthBarWidth / 2;
             const healthBarY = this.y - this.radius - 10;

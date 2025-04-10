@@ -15,6 +15,59 @@ class Game {
         this.pendingUIUpdates = new Set(); // Track pending UI updates
         this.lastUIUpdate = 0;
         this.UI_UPDATE_INTERVAL = 1000 / 30; // Update UI at 30 FPS
+        
+        // Dialogue messages for different events
+        this.dialogueMessages = {
+            waveStart: [
+                "Here they come...",
+                "Another wave incoming!",
+                "Get ready!",
+                "Prepare for battle!",
+                "Enemies approaching!"
+            ],
+            waveComplete: [
+                "Wave cleared!",
+                "That was close...",
+                "Good job!",
+                "We survived!",
+                "Time to prepare for the next wave!"
+            ],
+            towerSelected: [
+                "Tower selected.",
+                "Ready to place.",
+                "Choose a location.",
+                "Select placement.",
+                "Pick a spot."
+            ],
+            towerPlaced: [
+                "Tower deployed!",
+                "Good placement!",
+                "Tower ready!",
+                "Construction complete!",
+                "Tower operational!"
+            ],
+            towerScrapped: [
+                "Tower scrapped.",
+                "Recycling for parts...",
+                "Dismantling complete.",
+                "Resources recovered.",
+                "Tower removed."
+            ],
+            lowScraps: [
+                "Need more scraps...",
+                "Not enough resources...",
+                "Insufficient scraps...",
+                "Need to gather more...",
+                "Can't afford that..."
+            ],
+            gameOver: [
+                "We've been overrun...",
+                "This is the end...",
+                "Defense failed...",
+                "Game over...",
+                "All is lost..."
+            ]
+        };
     }
 
     // Helper function to draw images with preserved aspect ratio
@@ -156,7 +209,7 @@ class Game {
         this.scraps = 250; // Starting scraps
         this.waveReached = 0; // Track highest wave reached
         this.gameOver = false;
-        this.debugMode = false;
+        this.debugMode = false; // Added for developer menu
         this.devMenuVisible = false; // Added for developer menu
         this.scrapMode = false; // Renamed from sellMode
         this.selectedTower = null; // For tower upgrades
@@ -193,8 +246,8 @@ class Game {
                 name: "Bouncer",
                 description: "Ammu kimpoileva ammus joka vahingoittaa useita vihollisia",
                 cost: 90,
-                damage: 15,
-                range: 150 * this.scaleFactor,
+                damage: 10, // Reduced from 15
+                range: 120 * this.scaleFactor, // Reduced from 150
                 fireRate: 0.8,
                 color: "#00AAFF",
                 strokeColor: "#0088CC",
@@ -204,7 +257,7 @@ class Game {
                 name: "RPG",
                 description: "Ammu räjähtävä ammus joka vahingoittaa kaikkia lähellä olevia vihollisia",
                 cost: 120,
-                damage: 25,
+                damage: 35, // Increased from 25
                 range: 120 * this.scaleFactor,
                 fireRate: 0.5,
                 color: "#FF4500",
@@ -216,7 +269,7 @@ class Game {
                 name: "Sniper",
                 description: "Tarkka-ampuja joka osuu kaikkialle kartalle",
                 cost: 180,
-                damage: 50,
+                damage: 75, // Increased from 50
                 range: 9999 * this.scaleFactor, // Käytännössä ääretön kantama
                 fireRate: 0.2,
                 color: "#800080",
@@ -624,7 +677,7 @@ class Game {
     // Lisätään funktio dialogin päivittämiseen
     updateDialogue(newText) {
         if (this.dialogueTextElement) {
-            // Peruuta edellinen kirjoitusanimaatio ja poistoajastin
+            // Clear any existing animation
             if (this.typingInterval) {
                 clearInterval(this.typingInterval);
                 this.typingInterval = null;
@@ -634,12 +687,12 @@ class Game {
                 this.dialogueClearTimeout = null;
             }
 
-            // Tyhjennä tekstikenttä heti
+            // Clear the text element
             this.dialogueTextElement.textContent = '';
 
-            // Aloita uusi kirjoitusanimaatio
+            // Start new typing animation
             let charIndex = 0;
-            const typingSpeed = 40; // Millisekuntia per merkki (säädä tarvittaessa)
+            const typingSpeed = 40; // milliseconds per character
 
             this.typingInterval = setInterval(() => {
                 if (charIndex < newText.length) {
@@ -882,79 +935,57 @@ class Game {
             
             // Check tower shop buttons
             if (!isOverButton) {
-                for (let i = 0; i < this.towerTypes.length; i++) {
-                    const buttonRect = {
-                        x: this.uiPanel.x + 10 * this.scaleFactor,
-                        y: this.uiPanel.y + 100 * this.scaleFactor + i * 70 * this.scaleFactor, // Increased spacing slightly
-                        width: this.uiPanel.width - 20 * this.scaleFactor,
-                        height: 60 * this.scaleFactor // Increased height slightly
-                    };
-                    
-                    if (this.isPointInRect(mouseX, mouseY, buttonRect)) {
-                        document.body.style.cursor = 'pointer';
-                        isOverButton = true;
-                        this.hoveredTowerType = i;
-                        
-                        // Näytä tornin tiedot dialogilaatikossa
-                        const tower = this.towerTypes[i];
-                        let infoText = '';
-                        
-                        if (tower.name === "Sentry") {
-                            infoText = `Basic defense turret. Not much, but it gets the job done.\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec</span>`;
-                        } else if (tower.name === "Bouncer") {
-                            infoText = `Experimental ricochet technology. Each shot is a gamble, but when it works...\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nBounces: ${tower.maxBounces}\nSpeed: ${tower.fireRate}/sec</span>`;
-                        } else if (tower.name === "RPG") {
-                            infoText = `Area denial weapon. Make them regret clustering together.\n\n<span class="stats">Direct Hit: ${tower.damage}\nRange: ${tower.range}\nBlast Damage: ${tower.explosionDamage}\nBlast Radius: ${tower.explosionRadius}</span>`;
-                        } else if (tower.name === "Sniper") {
-                            infoText = `Long-range precision. One shot should be enough.\n\n<span class="stats">Damage: ${tower.damage}\nRange: Unlimited\nSpeed: ${tower.fireRate}/sec</span>`;
-                        } else if (tower.name === "Wall") {
-                            infoText = `Just a wall. Sometimes the simplest solutions are the best ones.\n\n<span class="stats">Durability: High\nFunction: Blocks enemy path</span>`;
-                        } else if (tower.name === "ElectricFence") {
-                            infoText = `Electric fence that damages nearby enemies. Perfect for chokepoints.\n\n<span class="stats">Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec</span>`;
-                        } else if (tower.name === "Scrapper") {
-                            infoText = `Salvaged resource collector. Keep the supplies flowing.\n\n<span class="stats">Generation: +${tower.scrapRate} scrap\nInterval: ${tower.scrapInterval/1000} seconds\nRequires: Active wave</span>`;
-                        }
-                        
-                        // Päivitä dialogiteksti ja käsittele HTML
-                        if (this.dialogueTextElement) {
-                            // Clear any existing typing animation
-                            if (this.typingInterval) {
-                                clearInterval(this.typingInterval);
-                                this.typingInterval = null;
-                            }
-                            // Clear any existing clear timeout
-                            if (this.dialogueClearTimeout) {
-                                clearTimeout(this.dialogueClearTimeout);
-                                this.dialogueClearTimeout = null;
-                            }
-                            // Update the text immediately
-                            this.dialogueTextElement.innerHTML = infoText;
-                        }
-                        
-                        break;
-                    }
-                }
+                const towerButtons = this.towerButtonsContainerElement.querySelectorAll('.crafting-button');
+                let hoveredTowerIndex = -1;
                 
-                // Jos hiiri ei ole minkään tornipainikkeen päällä, nollaa hoveredTowerType
-                // ja palauta alkuperäinen teksti jos torni on valittuna
-                if (!isOverButton) {
+                towerButtons.forEach((button, index) => {
+                    const buttonRect = button.getBoundingClientRect();
+                    if (mouseX >= buttonRect.left - rect.left && 
+                        mouseX <= buttonRect.right - rect.left && 
+                        mouseY >= buttonRect.top - rect.top && 
+                        mouseY <= buttonRect.bottom - rect.top) {
+                        hoveredTowerIndex = index;
+                    }
+                });
+                
+                if (hoveredTowerIndex !== -1) {
+                    document.body.style.cursor = 'pointer';
+                    isOverButton = true;
+                    this.hoveredTowerType = hoveredTowerIndex;
+                    
+                    // Show tower comment and stats in dialogue
+                    const tower = this.towerTypes[hoveredTowerIndex];
+                    let statsText = '';
+                    
+                    if (tower.name === "Sentry") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Bouncer") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nBounces: ${tower.maxBounces}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "RPG") {
+                        statsText = `Direct Hit: ${tower.damage}\nRange: ${tower.range}\nBlast Damage: ${tower.explosionDamage}\nBlast Radius: ${tower.explosionRadius}`;
+                    } else if (tower.name === "Sniper") {
+                        statsText = `Damage: ${tower.damage}\nRange: Unlimited\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Wall") {
+                        statsText = `Durability: High\nFunction: Blocks enemy path`;
+                    } else if (tower.name === "ElectricFence") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Scrapper") {
+                        statsText = `Generation: +${tower.scrapRate} scrap\nInterval: ${tower.scrapInterval/1000} seconds\nRequires: Active wave`;
+                    }
+                    
+                    // Combine comment and stats
+                    const fullText = `<span class="comment">${this.towerComments[hoveredTowerIndex] || "Selected item..."}</span>${statsText}`;
+                    
+                    // Update dialogue text
+                    if (this.dialogueTextElement) {
+                        this.dialogueTextElement.innerHTML = fullText;
+                    }
+                } else {
+                    // If not hovering over any tower button, show default text
                     if (this.hoveredTowerType !== -1) {
                         this.hoveredTowerType = -1;
-                        
-                        // Jos torni on valittuna, näytä sen kommentti
-                        if (this.selectedTower) {
-                            const selectedTowerIndex = this.towerTypes.findIndex(t => t.name === this.selectedTower.type.name);
-                            if (selectedTowerIndex !== -1) {
-                                this.updateDialogue(this.towerComments[selectedTowerIndex]);
-                            }
-                        } else if (this.buyMode) {
-                            // Jos ollaan ostotilassa, näytä valitun tornin kommentti
-                            this.updateDialogue(this.towerComments[this.selectedTowerType]);
-                        } else {
-                            // Jos mitään ei ole valittuna, tyhjennä teksti
-                            if (this.dialogueTextElement) {
-                                this.dialogueTextElement.textContent = '';
-                            }
+                        if (this.dialogueTextElement) {
+                            this.updateDialogue("Status: OK");
                         }
                     }
                 }
@@ -1028,8 +1059,10 @@ class Game {
 
         // Debug mode toggle (d key) and Esc to exit buy mode
         window.addEventListener('keydown', (event) => {
+            // Toggle dev menu on 'd' key
             if (event.key === 'd') {
                 this.debugMode = !this.debugMode;
+                this.devMenuVisible = !this.devMenuVisible;
             }
             
             // Exit buy mode and scrap mode on Escape key
@@ -1046,13 +1079,48 @@ class Game {
                     this.dialogueTextElement.textContent = '';
                 }
             }
-            
-            // Toggle dev menu on 'd' key
-            if (event.key === 'd') {
-                this.debugMode = !this.debugMode; // Keep debug mode toggle if needed
-                this.devMenuVisible = !this.devMenuVisible;
-            }
         });
+
+        // Add hover event listeners for crafting buttons
+        if (this.towerButtonsContainerElement) {
+            const towerButtons = this.towerButtonsContainerElement.querySelectorAll('.crafting-button');
+            
+            towerButtons.forEach((button, index) => {
+                // Mouse enter event
+                button.addEventListener('mouseenter', () => {
+                    const tower = this.towerTypes[index];
+                    let statsText = '';
+                    
+                    if (tower.name === "Sentry") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Bouncer") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nBounces: ${tower.maxBounces}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "RPG") {
+                        statsText = `Direct Hit: ${tower.damage}\nRange: ${tower.range}\nBlast Damage: ${tower.explosionDamage}\nBlast Radius: ${tower.explosionRadius}`;
+                    } else if (tower.name === "Sniper") {
+                        statsText = `Damage: ${tower.damage}\nRange: Unlimited\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Wall") {
+                        statsText = `Durability: High\nFunction: Blocks enemy path`;
+                    } else if (tower.name === "ElectricFence") {
+                        statsText = `Damage: ${tower.damage}\nRange: ${tower.range}\nSpeed: ${tower.fireRate}/sec`;
+                    } else if (tower.name === "Scrapper") {
+                        statsText = `Generation: +${tower.scrapRate} scrap\nInterval: ${tower.scrapInterval/1000} seconds\nRequires: Active wave`;
+                    }
+                    
+                    // Update dialogue text with just the stats
+                    if (this.dialogueTextElement) {
+                        this.dialogueTextElement.innerHTML = `<span class="stats">${statsText}</span>`;
+                    }
+                });
+                
+                // Mouse leave event
+                button.addEventListener('mouseleave', () => {
+                    if (this.dialogueTextElement) {
+                        this.dialogueTextElement.innerHTML = '';
+                    }
+                });
+            });
+        }
     }
 
     restartGame() {
@@ -1185,10 +1253,7 @@ class Game {
         
         // Check if player has enough scraps
         if (this.scraps < towerType.cost) {
-            // Only show "not enough scraps" message if not in continuous build mode
-            if (!this.isContinuousBuild) {
-                this.addFloatingText(this.canvas.width / 2, this.canvas.height / 2, "Not enough scraps!", "#FF0000", true);
-            }
+            this.showRandomDialogue('lowScraps');
             return false;
         }
 
@@ -1276,6 +1341,8 @@ class Game {
             "#FF0000"
         );
         
+        this.showRandomDialogue('towerPlaced');
+        
         return true;
     }
     
@@ -1328,6 +1395,7 @@ class Game {
     
         if (towerToScrap) {
             this.scrapTowerObject(towerToScrap);
+            this.showRandomDialogue('towerScrapped');
             return true;
         }
         
@@ -1411,6 +1479,9 @@ class Game {
         if (this.waveNumber > this.waveReached) {
             this.waveReached = this.waveNumber;
         }
+        
+        // Show wave start message
+        this.showRandomDialogue('waveStart');
         
         // Generoi uniikki aalto
         this.generateWave();
@@ -1535,12 +1606,39 @@ class Game {
                     this.damageFlash.active = true;
                     this.damageFlash.duration = this.damageFlash.maxDuration;
                     this.damageFlash.showHealthBar = true;
-                } else if (!creep.attackingTower) {
+                    
+                    // Add floating text for damage
+                    this.addFloatingText(
+                        this.homePoint.x,
+                        this.homePoint.y,
+                        "-1 Life",
+                        "#FF0000"
+                    );
+                    
+                    // Keep the creep around for one more frame to be drawn
+                    creep.isAlive = true;
+                    creep.reachedEnd = false;
+                    setTimeout(() => {
+                        creep.isAlive = false;
+                        creep.reachedEnd = true;
+                        const index = this.creeps.indexOf(creep);
+                        if (index !== -1) {
+                            this.creeps.splice(index, 1);
+                        }
+                    }, 16); // Wait one frame (assuming 60fps)
+                } else {
                     const reward = 5 + Math.floor(this.waveNumber * 0.8);
                     this.scraps += reward;
-                    this.addFloatingText(creep.x, creep.y, `+${reward}`, "#FFD700");
+                    // Add floating text with scrap icon
+                    this.addFloatingText(
+                        creep.x + this.gameArea.x,
+                        creep.y,
+                        `+${reward} scrap`,
+                        "#FFD700",
+                        true
+                    );
+                    this.creeps.splice(i, 1);
                 }
-                this.creeps.splice(i, 1);
             }
         }
         
@@ -1549,6 +1647,7 @@ class Game {
             this.waveActive = false;
             const waveBonus = 10 + this.waveNumber * 5;
             this.scraps += waveBonus;
+            this.showRandomDialogue('waveComplete');
         }
         
         // Check game over
@@ -1670,6 +1769,11 @@ class Game {
         if (this.gameOver) {
             this.drawGameOverScreen();
         }
+
+        // Draw debug menu if visible
+        if (this.devMenuVisible) {
+            this.drawDevMenu();
+        }
     }
 
     drawSpawnAndHomePoints() {
@@ -1705,6 +1809,40 @@ class Game {
         if (this.damageFlash.showHealthBar) {
             this.drawHealthBar();
         }
+    }
+
+    drawHealthBar() {
+        const barWidth = 200 * this.scaleFactor;
+        const barHeight = 20 * this.scaleFactor;
+        const barX = this.canvas.width / 2 - barWidth / 2;
+        const barY = 20 * this.scaleFactor;
+        
+        // Draw background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Draw health portion
+        const healthPortion = this.playerLives / 10; // Assuming max lives is 10
+        this.ctx.fillStyle = healthPortion > 0.5 ? '#00FF00' : healthPortion > 0.25 ? '#FFFF00' : '#FF0000';
+        this.ctx.globalAlpha = this.damageFlash.healthBarAlpha;
+        this.ctx.fillRect(barX, barY, barWidth * healthPortion, barHeight);
+        this.ctx.globalAlpha = 1.0;
+        
+        // Draw border
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // Draw lives text
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = `${16 * this.scaleFactor}px "VT323", monospace`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            `Lives: ${this.playerLives}`,
+            this.canvas.width / 2,
+            barY + barHeight / 2
+        );
     }
 
     drawTowerWireframe() {
@@ -2161,6 +2299,15 @@ class Game {
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText("Force Next Wave", forceWaveButtonRect.x + forceWaveButtonRect.width / 2, forceWaveButtonRect.y + forceWaveButtonRect.height / 2);
+    }
+
+    // Add this new method to show random dialogue messages
+    showRandomDialogue(type) {
+        if (this.dialogueMessages[type]) {
+            const messages = this.dialogueMessages[type];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            this.updateDialogue(randomMessage);
+        }
     }
 }
 
