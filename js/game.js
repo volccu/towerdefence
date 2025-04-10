@@ -11,10 +11,24 @@ class Game {
         this.setupEventListeners();
         this.lastTime = 0;
         this.startGame();
+        this.aspectRatioCache = new Map(); // Add aspect ratio cache
+        this.pendingUIUpdates = new Set(); // Track pending UI updates
+        this.lastUIUpdate = 0;
+        this.UI_UPDATE_INTERVAL = 1000 / 30; // Update UI at 30 FPS
     }
 
     // Helper function to draw images with preserved aspect ratio
     drawImageMaintainAspectRatio(img, x, y, targetWidth, targetHeight, centerX = true, centerY = false) {
+        // Check cache first
+        const cacheKey = `${img.src}-${targetWidth}-${targetHeight}`;
+        if (this.aspectRatioCache.has(cacheKey)) {
+            const cached = this.aspectRatioCache.get(cacheKey);
+            const drawX = centerX ? x + (targetWidth - cached.width) / 2 : x;
+            const drawY = centerY ? y + (targetHeight - cached.height) / 2 : y;
+            this.ctx.drawImage(img, drawX, drawY, cached.width, cached.height);
+            return cached;
+        }
+        
         const aspectRatio = img.width / img.height;
         let width, height;
         
@@ -34,7 +48,11 @@ class Game {
         
         this.ctx.drawImage(img, drawX, drawY, width, height);
         
-        return { width, height }; // Return actual dimensions used
+        // Cache the result
+        const result = { width, height };
+        this.aspectRatioCache.set(cacheKey, result);
+        
+        return result;
     }
 
     initialize() {
@@ -1618,54 +1636,42 @@ class Game {
             text.life -= 1; // Decrease life
             text.alpha = text.life / 60; // Fade out
             
-            // Draw scrap icon if needed
-            if (text.showScrapIcon && this.assets.isReady()) {
-                const scrapImg = this.assets.getImage('scrap');
-                const scrapSize = 15 * this.scaleFactor;
-                this.ctx.globalAlpha = text.alpha;
-                const textMetrics = this.ctx.measureText(text.text); // Get text metrics (though not fully used here yet)
-                const iconY = text.y - scrapSize / 2; // Align icon center with text center (baseline='middle')
-                this.drawImageMaintainAspectRatio(
-                    scrapImg,
-                    text.x - 20 * this.scaleFactor, // Position icon slightly left of text center
-                    iconY,
-                    scrapSize,
-                    scrapSize
-                );
-                this.ctx.globalAlpha = 1.0;
-            }
-            
-            this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
-            this.ctx.font = 'bold 20px "VT323", monospace'; // 16px -> 20px
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText(text.text, text.x, text.y);
-            
             // Remove dead texts
             if (text.life <= 0) {
                 this.floatingTexts.splice(i, 1);
             }
         }
 
-         // *** Update HTML Next Wave button state ***
-         if (this.nextWaveButtonElement) {
-            // Disable the button if a wave is active
+        // Batch UI updates
+        if (currentTime - this.lastUIUpdate >= this.UI_UPDATE_INTERVAL) {
+            this.updateUI();
+            this.lastUIUpdate = currentTime;
+        }
+    }
+
+    updateUI() {
+        // Update HTML elements in batch
+        if (this.nextWaveButtonElement) {
             this.nextWaveButtonElement.disabled = this.waveActive;
-         }
-         // *** End Button State Update ***
+        }
+        
+        if (this.scrapsValueElement) {
+            this.scrapsValueElement.textContent = this.scraps;
+        }
+        
+        if (this.waveValueElement) {
+            this.waveValueElement.textContent = this.waveNumber;
+        }
 
-         // Update other HTML elements (stats, etc.) - placeholders for now
-         if (this.scrapsValueElement) this.scrapsValueElement.textContent = this.scraps;
-         if (this.waveValueElement) this.waveValueElement.textContent = this.waveNumber;
-
-         // Update scrap mode button appearance (using class for styling)
-          if (this.scrapModeButtonElement) {
-             if (this.scrapMode) {
-                 this.scrapModeButtonElement.classList.add('active');
-             } else {
-                 this.scrapModeButtonElement.classList.remove('active');
-             }
-         }
-         this.updateCraftingButtonStates(); // *** Call crafting button update ***
+        if (this.scrapModeButtonElement) {
+            if (this.scrapMode) {
+                this.scrapModeButtonElement.classList.add('active');
+            } else {
+                this.scrapModeButtonElement.classList.remove('active');
+            }
+        }
+        
+        this.updateCraftingButtonStates();
     }
 
     draw() {
@@ -1685,34 +1691,6 @@ class Game {
         this.ctx.fillStyle = '#0f0f0f';
         this.ctx.fillRect(this.gameArea.x, this.gameArea.y, this.gameArea.width, this.gameArea.height);
         
-        // Draw UI panel background with a solid color gradient (REMOVED - Handled by HTML/CSS)
-        /* // Commenting out UI Panel background drawing
-        const gradient = this.ctx.createLinearGradient(
-            this.uiPanel.x, 
-            this.uiPanel.y, 
-            this.uiPanel.x + this.uiPanel.width, 
-            this.uiPanel.y + this.uiPanel.height
-        );
-        gradient.addColorStop(0, '#1a1a1a');
-        gradient.addColorStop(0.5, '#1f1f1f');
-        gradient.addColorStop(1, '#1a1a1a');
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(this.uiPanel.x, this.uiPanel.y, this.uiPanel.width, this.uiPanel.height);
-        */
-
-        // Add a subtle border to separate game area and UI (REMOVED - Handled by HTML/CSS)
-        /* // Commenting out UI Panel border drawing
-        this.ctx.strokeStyle = '#2a2a2a';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.uiPanel.x, this.uiPanel.y);
-        this.ctx.lineTo(this.uiPanel.x, this.uiPanel.y + this.uiPanel.height);
-        this.ctx.stroke();
-        */
-        
-        // Draw stats (REMOVED - Handled by HTML)
-        // this.drawStats(); 
-        
         // Draw grid (includes ground and nonground tiles)
         this.grid.draw(this.ctx);
         
@@ -1731,10 +1709,10 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-        this.ctx.fillStyle = this.spawnPoint.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
-        this.ctx.fill();
+            this.ctx.fillStyle = this.spawnPoint.color;
+            this.ctx.beginPath();
+            this.ctx.arc(this.spawnPoint.x, this.spawnPoint.y, this.spawnPoint.radius, 0, Math.PI * 2);
+            this.ctx.fill();
         }
         
         // Draw home point with image and health bar
@@ -1750,10 +1728,10 @@ class Game {
             );
         } else {
             // Fallback to circle if image not loaded
-        this.ctx.fillStyle = this.homePoint.color;
-        this.ctx.beginPath();
-        this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
-        this.ctx.fill();
+            this.ctx.fillStyle = this.homePoint.color;
+            this.ctx.beginPath();
+            this.ctx.arc(this.homePoint.x, this.homePoint.y, this.homePoint.radius, 0, Math.PI * 2);
+            this.ctx.fill();
         }
 
         // Draw health bar over base only when damage flash is active
@@ -1799,45 +1777,45 @@ class Game {
                 // Draw 1x1 wireframe for wall/fence
                 this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(x, y, this.grid.cellSize, this.grid.cellSize);
-                
-                // Show range circle for ElectricFence
-                if (towerType.name === "ElectricFence" && canPlace) {
-                    this.ctx.beginPath();
-                    this.ctx.arc(
-                        x + this.grid.cellSize / 2,
-                        y + this.grid.cellSize / 2,
-                        towerType.range,
-                        0,
-                        Math.PI * 2
-                    );
-                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    this.ctx.stroke();
-                }
             } else {
                 // Regular tower takes 2x2 cells
-                canPlace = this.grid.canPlaceTower(this.hoverX, this.hoverY) && 
-                          !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
-                          
-                // Draw 2x2 wireframe for tower
+                canPlace = !this.grid.isCellOccupied(this.hoverX, this.hoverY) && 
+                            !this.grid.isCellOccupied(this.hoverX + 1, this.hoverY) &&
+                            !this.grid.isCellOccupied(this.hoverX, this.hoverY + 1) &&
+                            !this.grid.isCellOccupied(this.hoverX + 1, this.hoverY + 1) &&
+                            !this.isPointNearSpawnOrHome(this.hoverX, this.hoverY);
+            
+                // Draw 2x2 wireframe for regular tower
                 this.ctx.fillStyle = canPlace ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.3)';
                 this.ctx.fillRect(x, y, this.grid.cellSize * 2, this.grid.cellSize * 2);
-            
-            // Show range circle when placing towers if debug mode is on or showRangeWhenPlacing is true
-            if ((this.debugMode || this.showRangeWhenPlacing) && canPlace) {
-                this.ctx.beginPath();
-                this.ctx.arc(
-                        x + this.grid.cellSize, // center of 2x2 grid
-                        y + this.grid.cellSize,
-                    towerType.range,
-                    0,
-                    Math.PI * 2
-                );
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                this.ctx.stroke();
-                }
             }
         }
+
+        // Draw floating texts in batch
+        this.ctx.font = 'bold 20px "VT323", monospace';
+        this.ctx.textAlign = 'center';
         
+        for (const text of this.floatingTexts) {
+            // Draw scrap icon if needed
+            if (text.showScrapIcon && this.assets.isReady()) {
+                const scrapImg = this.assets.getImage('scrap');
+                const scrapSize = 15 * this.scaleFactor;
+                this.ctx.globalAlpha = text.alpha;
+                const iconY = text.y - scrapSize / 2;
+                this.drawImageMaintainAspectRatio(
+                    scrapImg,
+                    text.x - 20 * this.scaleFactor,
+                    iconY,
+                    scrapSize,
+                    scrapSize
+                );
+            }
+            
+            this.ctx.fillStyle = `rgba(${this.hexToRgb(text.color)}, ${text.alpha})`;
+            this.ctx.fillText(text.text, text.x, text.y);
+        }
+        this.ctx.globalAlpha = 1.0;
+
         // Draw towers
         for (const tower of this.towers) {
             if (tower.isWall) {
