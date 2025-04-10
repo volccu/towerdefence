@@ -199,17 +199,22 @@ body {
 }
 
 #tower-buttons-container {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
 }
 
 /* Stats Area Styles */
 #stats-area {
-    margin-bottom: 0;
-    background-color: transparent;
-    padding: 0;
-    border-radius: 0;
-    border: none;
+    margin-bottom: 16px;
+    background-color: rgba(20, 20, 20, 0.9);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
 }
 
 #stats-area .panel-title {
@@ -218,8 +223,8 @@ body {
 
 .stat-item {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 8px;
+    align-items: center;
+    gap: 8px;
 }
 
 .stat-label {
@@ -351,9 +356,8 @@ body {
 /* Crafting button styles */
 .crafting-button {
     position: relative;
+    aspect-ratio: 1;
     width: 100%;
-    height: 52px;
-    margin-bottom: 8px;
     background: linear-gradient(to bottom, #2a2a2a, #252525);
     border: 1px solid #333;
     border-radius: 8px;
@@ -361,8 +365,10 @@ body {
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
-    padding: 8px;
+    justify-content: center;
+    padding: 0;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 .crafting-button:hover {
@@ -390,25 +396,34 @@ body {
 }
 
 .crafting-button .tower-sprite {
-    width: 36px;
-    height: 36px;
-    margin-right: 8px;
+    width: 80%;
+    height: 80%;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
 }
 
 .crafting-button .tower-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 8px;
+    transform: translateY(100%);
+    transition: transform 0.2s ease;
+    pointer-events: none;
+}
+
+.crafting-button:hover .tower-info {
+    transform: translateY(0);
 }
 
 .crafting-button .tower-name {
     font-size: 13px;
     color: #fff;
     margin-bottom: 3px;
+    text-align: center;
 }
 
 .crafting-button .tower-cost {
@@ -416,6 +431,7 @@ body {
     color: #FFD700;
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 
 .crafting-button .tower-cost img {
