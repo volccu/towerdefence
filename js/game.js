@@ -1491,47 +1491,172 @@ class Game {
     }
 
     generateWave() {
-        // Perusarvot aallon vaikeudelle
+        // Perusarvot aallon vaikeudelle (käytetään aalloille > 20)
         const baseDifficulty = 1 + (this.waveNumber * 0.1);
         
-        // Boss aallot
-        if (this.waveNumber % 10 === 0) {
-            this.creepsToSpawn = 1; // Vain yksi boss
-            this.waveCreeps = [{ type: 'boss' }];
-            return;
+        this.waveCreeps = []; // Initialize empty creep list for the wave
+        
+        // Helper function to create an array of creep objects
+        const createCreeps = (type, count) => Array(count).fill({ type: type });
+        
+        // Specific wave compositions for waves 1-20
+        switch (this.waveNumber) {
+            case 1:
+                this.waveCreeps = createCreeps('normal', 7); // 6-8 normal
+                break;
+            case 2:
+                this.waveCreeps = createCreeps('normal', 11); // 10-12 normal
+                break;
+            case 3:
+                this.waveCreeps = [
+                    ...createCreeps('normal', 4),
+                    ...createCreeps('fast', 6)
+                ]; // 4 normal + 6 fast
+                // Simple shuffle
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+            case 4:
+                this.waveCreeps = createCreeps('fast', 14); // 12-15 fast
+                break;
+            case 5:
+                // Mini-boss mid-wave
+                this.waveCreeps = [
+                    ...createCreeps('normal', 4),
+                    { type: 'miniBoss' },
+                    ...createCreeps('normal', 4)
+                ]; // 1 miniBoss + 8 normal
+                break;
+            case 6:
+                this.waveCreeps = createCreeps('tank', 6); // 5-7 tank
+                break;
+            case 7:
+                this.waveCreeps = [
+                    ...createCreeps('normal', 10),
+                    ...createCreeps('fast', 6),
+                    ...createCreeps('tank', 3)
+                ]; // 10 normal + 6 fast + 3 tank
+                // Simple shuffle
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+            case 8:
+                this.waveCreeps = createCreeps('tank', 9); // 8-10 tank
+                break;
+            case 9:
+                this.waveCreeps = createCreeps('normal', 23); // 20-25 normal
+                break;
+            case 10:
+                this.waveCreeps = createCreeps('boss', 1); // 1 boss
+                break;
+            case 11:
+                this.waveCreeps = createCreeps('splitter', 5); // 4-6 splitter
+                break;
+            case 12:
+                // Arriving in pairs/triplets - just create the total count for now
+                this.waveCreeps = createCreeps('splitter', 9); // 8-10 splitter
+                break;
+            case 13:
+                 // Alternating groups - simple shuffle for now
+                this.waveCreeps = [
+                    ...createCreeps('fast', 10),
+                    ...createCreeps('tank', 8)
+                ]; // 10 fast + 8 tank
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+            case 14:
+                this.waveCreeps = [
+                    ...createCreeps('normal', 15),
+                    ...createCreeps('fast', 8),
+                    ...createCreeps('tank', 5),
+                    ...createCreeps('splitter', 3)
+                ]; // 15 normal + 8 fast + 5 tank + 3 splitter
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+             case 15:
+                 // Staggered arrival - place tanks around minibosses
+                 this.waveCreeps = [
+                     ...createCreeps('tank', 3),
+                     { type: 'miniBoss' },
+                     ...createCreeps('tank', 3),
+                     { type: 'miniBoss' }
+                 ]; // 2 miniBoss + 6 tank
+                 break;
+            case 16:
+                this.waveCreeps = createCreeps('fast', 33); // 30-35 fast
+                break;
+            case 17:
+                // Tank vanguard
+                this.waveCreeps = [
+                    ...createCreeps('tank', 10),
+                    ...createCreeps('splitter', 8)
+                ]; // 10 tank + 8 splitter
+                break;
+            case 18:
+                 // Mixed groups, arriving quickly - simple shuffle for now
+                this.waveCreeps = [
+                    ...createCreeps('fast', 15),
+                    ...createCreeps('splitter', 10)
+                ]; // 15 fast + 10 splitter
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+            case 19:
+                 // Long mixed stream - adjust counts slightly
+                this.waveCreeps = [
+                    ...createCreeps('normal', 15), // Fewer normal
+                    ...createCreeps('fast', 12), // Fewer fast
+                    ...createCreeps('tank', 4), // Fewer tanks
+                    ...createCreeps('splitter', 7) // More splitters
+                ]; // 38 total mixed creeps (35-40 range)
+                this.waveCreeps.sort(() => Math.random() - 0.5);
+                break;
+            case 20:
+                // Let's stick with 1 Boss for wave 20 as planned initially
+                this.waveCreeps = createCreeps('boss', 1);
+                break;
+                
+            default:
+                // Default logic for waves > 20 (similar to original)
+                // Boss aallot every 10 waves
+                if (this.waveNumber % 10 === 0) {
+                    this.creepsToSpawn = 1 + Math.floor(this.waveNumber / 20); // More bosses later
+                    this.waveCreeps = createCreeps('boss', this.creepsToSpawn);
+                    return; // Exit after setting boss wave
+                }
+                
+                // Mini-boss aallot every 5 waves (excluding boss waves)
+                if (this.waveNumber % 5 === 0) {
+                    this.creepsToSpawn = 3 + Math.floor(this.waveNumber / 10); // More mini-bosses later
+                    this.waveCreeps = createCreeps('miniBoss', this.creepsToSpawn);
+                    return; // Exit after setting mini-boss wave
+                }
+                
+                // Normaalit aallot (waves > 20)
+                const creepTypes = ['normal', 'fast', 'tank', 'splitter'];
+                const creepCount = Math.floor(10 + this.waveNumber * 1.8); // Increased scaling past wave 20
+                
+                // Luo satunnainen aalto
+                for (let i = 0; i < creepCount; i++) {
+                    // Valitse creep-tyyppi painotetulla todennäköisyydellä
+                    let type;
+                    const rand = Math.random();
+                    
+                    // Adjust probabilities slightly for later waves
+                    if (rand < 0.3) { // Less normal
+                        type = 'normal';
+                    } else if (rand < 0.55) { // More fast
+                        type = 'fast';
+                    } else if (rand < 0.8) { // More tank
+                        type = 'tank';
+                    } else { // More splitter
+                        type = 'splitter';
+                    }
+                    
+                    this.waveCreeps.push({ type });
+                }
+                break;
         }
         
-        // Mini-boss aallot
-        if (this.waveNumber % 5 === 0) {
-            this.creepsToSpawn = 3; // Muutama mini-boss
-            this.waveCreeps = Array(3).fill({ type: 'miniBoss' });
-            return;
-        }
-        
-        // Normaalit aallot
-        const creepTypes = ['normal', 'fast', 'tank', 'splitter'];
-        const creepCount = Math.floor(5 + this.waveNumber * 1.5);
-        this.creepsToSpawn = creepCount;
-        
-        // Luo satunnainen aalto
-        this.waveCreeps = [];
-        for (let i = 0; i < creepCount; i++) {
-            // Valitse creep-tyyppi painotetulla todennäköisyydellä
-            let type;
-            const rand = Math.random();
-            
-            if (rand < 0.4) {
-                type = 'normal';
-            } else if (rand < 0.6) {
-                type = 'fast';
-            } else if (rand < 0.8) {
-                type = 'tank';
-            } else {
-                type = 'splitter';
-            }
-            
-            this.waveCreeps.push({ type });
-        }
+        // Set the total number of creeps to spawn for this wave
+        this.creepsToSpawn = this.waveCreeps.length;
     }
 
     spawnCreep() {
