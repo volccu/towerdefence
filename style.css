@@ -1,102 +1,103 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 body {
     margin: 0;
     padding: 0;
-    background-color: #0a0a0a;
+    background-color: #1a1a1a;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    font-family: "VT323", monospace;
-    font-size: 20px;
-    color: #eee;
+    font-family: "Share Tech Mono", monospace;
+    font-size: 16px;
+    color: #c5c5a7;
 }
 
 #game-container {
     position: relative;
     display: flex;
     gap: 0;
-    background-color: #111;
-    border-radius: 12px;
+    background-color: #2a2a2a;
+    border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
-    border: 1px solid #2a2a2a;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
 }
 
 #gameCanvas {
     display: block;
     background-color: #000;
+    border-right: 1px solid #444;
 }
 
 #right-panel {
-    width: 300px;
-    background-color: #1a1a1a;
-    border-left: 1px solid #2a2a2a;
+    width: 280px;
+    background-color: #2a2a2a;
+    border-left: none;
     display: flex;
     flex-direction: column;
-    padding: 12px;
+    padding: 15px;
     box-sizing: border-box;
     height: 100%;
 }
 
 #dialogue-panel {
-    background-color: rgba(20, 20, 20, 0.9);
-    border: 1px solid #2a2a2a;
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
+    background-color: rgba(30, 30, 30, 0.9);
+    border: 1px solid #444;
+    border-radius: 0;
+    padding: 10px;
+    margin-bottom: 15px;
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
-    gap: 15px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    height: 120px;
+    align-items: center;
+    gap: 10px;
+    box-shadow: none;
+    height: 100px;
     overflow: hidden;
 }
 
 #dialogue-avatar {
-    width: 64px;
-    height: 64px;
+    width: 50px;
+    height: 50px;
     background-color: #1a1a1a;
-    border: 1px solid #2a2a2a;
+    border: 1px solid #444;
     margin-bottom: 0;
     background-image: url('assets/player.png');
     background-size: cover;
     background-position: center;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border-radius: 0;
+    box-shadow: none;
     flex-shrink: 0;
 }
 
 #dialogue-text {
-    font-family: 'VT323', monospace;
-    font-size: 14px;
-    color: #fff;
-    padding: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: #c5c5a7;
+    padding: 5px;
     height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
-    text-align: center;
-    line-height: 1.3;
+    align-items: flex-start;
+    text-align: left;
+    line-height: 1.4;
     overflow-y: auto;
     width: 100%;
 }
 
 #dialogue-text .comment {
-    color: #fff;
-    margin-bottom: 8px;
-    font-size: 14px;
+    color: #aaa;
+    margin-bottom: 5px;
+    font-size: 12px;
 }
 
 #dialogue-text .stats {
-    color: #ffd700;
-    font-size: 13px;
+    color: #a8a88d;
+    font-size: 12px;
     white-space: pre-line;
-    font-weight: bold;
-    text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+    font-weight: normal;
+    text-shadow: none;
 }
 
 /* Game over screen styles */
@@ -105,48 +106,50 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.95);
-    padding: 40px;
-    border-radius: 12px;
+    background-color: rgba(26, 26, 26, 0.98);
+    padding: 30px;
+    border-radius: 0;
     text-align: center;
-    color: white;
+    color: #c5c5a7;
     display: none;
-    border: 1px solid #2a2a2a;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
     z-index: 1000;
+    width: 300px;
 }
 
 #gameOver h2 {
-    font-size: 36px;
-    margin-bottom: 20px;
-    color: #ff4444;
-    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    font-size: 24px;
+    margin-bottom: 15px;
+    color: #d44;
+    text-shadow: none;
+    font-weight: normal;
 }
 
 #gameOver p {
-    font-size: 24px;
-    margin-bottom: 30px;
-    color: #eee;
+    font-size: 16px;
+    margin-bottom: 25px;
+    color: #aaa;
 }
 
 #restartButton {
-    background: linear-gradient(to bottom, #3a8a3e, #357a38);
-    color: white;
-    border: none;
-    padding: 15px 30px;
-    font-size: 20px;
+    background: #3a3a3a;
+    color: #c5c5a7;
+    border: 1px solid #555;
+    padding: 10px 20px;
+    font-size: 16px;
     cursor: pointer;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    border: 1px solid #2a2a2a;
+    border-radius: 0;
+    transition: all 0.2s ease;
+    text-shadow: none;
+    box-shadow: none;
+    text-transform: uppercase;
 }
 
 #restartButton:hover {
-    background: linear-gradient(to bottom, #357a38, #306a33);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    background: #4a4a4a;
+    border-color: #666;
+    color: #fff;
 }
 
 /* Loading screen styles */
@@ -156,207 +159,272 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: #000;
+    background-color: #1a1a1a;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: white;
+    color: #c5c5a7;
     z-index: 1000;
 }
 
 #loadingScreen h2 {
-    font-size: 36px;
-    margin-bottom: 30px;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-    color: #eee;
+    font-size: 28px;
+    margin-bottom: 25px;
+    text-shadow: none;
+    color: #c5c5a7;
+    font-weight: normal;
 }
 
 #loadingBar {
-    width: 300px;
-    height: 20px;
-    background-color: #1a1a1a;
-    border-radius: 10px;
+    width: 250px;
+    height: 15px;
+    background-color: #3a3a3a;
+    border-radius: 0;
     overflow: hidden;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-    border: 1px solid #2a2a2a;
+    box-shadow: none;
+    border: 1px solid #555;
 }
 
 #loadingProgress {
     width: 0%;
     height: 100%;
-    background: linear-gradient(to right, #3a8a3e, #357a38);
+    background-color: #a8a88d;
     transition: width 0.3s ease;
 }
 
 /* Panel Section Title Styles */
 .panel-title {
-    font-size: 16px;
-    color: #eee;
-    text-align: center;
-    margin-bottom: 12px;
-    padding-bottom: 4px;
-    border-bottom: 1px solid #3a3a3a;
+    font-size: 14px;
+    color: #aaa;
+    text-align: left;
+    margin-bottom: 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #444;
     text-transform: uppercase;
+    font-weight: normal;
 }
 
 /* Crafting Area Styles */
 #crafting-area {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 #tower-buttons-container {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
 }
 
 /* Stats Area Styles */
 #stats-area {
-    margin-bottom: 16px;
-    background-color: rgba(20, 20, 20, 0.9);
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #2a2a2a;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin-bottom: 15px;
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
     display: flex;
-    justify-content: space-between;
-    gap: 20px;
+    flex-direction: column;
+    gap: 5px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
 }
 
 #stats-area .panel-title {
-    display: none;
+    display: block;
 }
 
 .stat-item {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 8px;
 }
 
 .stat-label {
     color: #aaa;
     font-size: 13px;
+    text-transform: uppercase;
 }
 
 .stat-value {
-    color: #FFD700;
+    color: #c5c5a7;
     font-size: 14px;
-    font-weight: bold;
+    font-weight: normal;
 }
 
 /* Controls Area Styles */
 #controls-area {
     margin-top: auto;
     display: flex;
+    flex-direction: column;
     gap: 8px;
 }
 
 .control-button {
-    flex: 1;
-    padding: 10px 8px;
+    flex: none;
+    width: 100%;
+    padding: 8px 10px;
     font-size: 13px;
-    font-family: 'VT323', monospace;
+    font-family: 'Share Tech Mono', monospace;
     cursor: pointer;
-    border-radius: 6px;
-    border: 1px solid #2a2a2a;
+    border-radius: 0;
+    border: 1px solid #555;
     transition: all 0.2s ease;
     text-transform: uppercase;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+    text-shadow: none;
+    background: #3a3a3a;
+    color: #c5c5a7;
+    text-align: left;
+}
+
+.control-button:hover {
+    background: #4a4a4a;
+    border-color: #666;
+    color: #fff;
 }
 
 #next-wave-button {
-    background: linear-gradient(to bottom, #3a8a3e, #357a38);
-    color: white;
+    /* Specific styles if needed, otherwise inherits from .control-button */
 }
 
 #next-wave-button:hover {
-    background: linear-gradient(to bottom, #357a38, #306a33);
+    /* Hover inherits */
 }
 
 #next-wave-button:disabled {
-    background: linear-gradient(to bottom, #2a2a2a, #252525);
+    background: #2f2f2f;
     color: #666;
+    border-color: #444;
     cursor: not-allowed;
 }
 
 #scrap-mode-button {
-    background: linear-gradient(to bottom, #2a2a2a, #252525);
-    color: white;
+    /* Inherits base style */
 }
 
 #scrap-mode-button:hover {
-    background: linear-gradient(to bottom, #3a3a3a, #353535);
+    /* Inherits hover */
 }
 
 #scrap-mode-button.active {
-    background: linear-gradient(to bottom, #ff4444, #cc3333);
-    border-color: #aa2222;
+    background: #a8a88d;
+    border-color: #c5c5a7;
+    color: #1a1a1a;
 }
 
 #scrap-mode-button.active:hover {
-    background: linear-gradient(to bottom, #cc3333, #aa2222);
+    background: #b8b89d;
 }
 
 /* Responsive styles */
 @media (max-width: 1200px) {
     #game-container {
-        flex-direction: column-reverse;
-        width: 90vw;
+        flex-direction: column;
+        width: 95vw;
+        max-width: 800px;
+        border: 1px solid #444;
     }
-    
+
     #gameCanvas {
         width: 100%;
         height: auto;
+        border-right: none;
+        border-bottom: 1px solid #444;
     }
-    
+
     #right-panel {
         width: 100%;
         height: auto;
         border-left: none;
-        border-top: 1px solid #2a2a2a;
-        margin-bottom: 0;
+        border-top: none;
+        padding: 10px;
     }
 
     #controls-area {
         margin-top: 15px;
+        flex-direction: row;
+        gap: 10px;
+    }
+    .control-button {
+        flex: 1;
+        text-align: center;
+    }
+
+    #stats-area {
+        flex-direction: row;
+        justify-content: space-around;
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 10px;
+    }
+    #stats-area .panel-title {
+        display: none;
+    }
+    .stat-item {
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
     }
 }
 
 @media (max-width: 768px) {
-    #loadingScreen h2 {
-        font-size: 24px;
+    body {
+        font-size: 14px;
     }
-    
+
+    #loadingScreen h2 {
+        font-size: 22px;
+    }
+
     #loadingBar {
         width: 200px;
+        height: 12px;
     }
-    
+
     #right-panel {
-        padding: 10px;
-    }
-
-    .panel-title {
-        font-size: 18px;
-    }
-
-    #dialogue-avatar {
-        width: 50px;
-        height: 50px;
-    }
-    
-    #dialogue-text {
-        font-size: 14px;
         padding: 8px;
     }
 
-    .crafting-button {
-        height: 60px;
+    .panel-title {
+        font-size: 13px;
+    }
+
+    #dialogue-panel {
+        height: 80px;
+        padding: 8px;
+        gap: 8px;
+    }
+    #dialogue-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    #dialogue-text {
+        font-size: 12px;
+    }
+    #dialogue-text .comment {
+        font-size: 11px;
+    }
+    #dialogue-text .stats {
+        font-size: 11px;
+    }
+
+    #tower-buttons-container {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
     }
 
     .control-button {
-        font-size: 14px;
-        padding: 10px 8px;
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    .stat-label {
+        font-size: 12px;
+    }
+    .stat-value {
+        font-size: 13px;
     }
 }
 
@@ -365,9 +433,9 @@ body {
     position: relative;
     aspect-ratio: 1;
     width: 100%;
-    background: linear-gradient(to bottom, #2a2a2a, #252525);
-    border: 1px solid #333;
-    border-radius: 8px;
+    background: #3a3a3a;
+    border: 1px solid #555;
+    border-radius: 0;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
@@ -379,35 +447,43 @@ body {
 }
 
 .crafting-button:hover {
-    background: linear-gradient(to bottom, #3a3a3a, #353535);
-    border-color: #444;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    background: #4a4a4a;
+    border-color: #666;
+    transform: none;
+    box-shadow: none;
 }
 
 .crafting-button:active {
-    transform: translateY(0);
+    background: #5a5a5a;
+    transform: none;
     box-shadow: none;
 }
 
 .crafting-button.disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
+    background: #303030;
+    border-color: #444;
 }
 
 .crafting-button.disabled:hover {
-    background: linear-gradient(to bottom, #2a2a2a, #252525);
-    border-color: #333;
+    background: #303030;
+    border-color: #444;
     transform: none;
     box-shadow: none;
 }
 
 .crafting-button .tower-sprite {
-    width: 80%;
-    height: 80%;
+    width: 75%;
+    height: 75%;
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+    filter: grayscale(30%) brightness(90%);
+}
+
+.crafting-button:hover .tower-sprite {
+    filter: grayscale(0%) brightness(100%);
 }
 
 .crafting-button .tower-info {
@@ -415,11 +491,12 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 8px;
+    background: rgba(26, 26, 26, 0.9);
+    padding: 5px;
     transform: translateY(100%);
     transition: transform 0.2s ease;
     pointer-events: none;
+    border-top: 1px solid #444;
 }
 
 .crafting-button:hover .tower-info {
@@ -427,32 +504,41 @@ body {
 }
 
 .crafting-button .tower-name {
-    font-size: 13px;
-    color: #fff;
-    margin-bottom: 3px;
+    font-size: 11px;
+    color: #c5c5a7;
+    margin-bottom: 2px;
     text-align: center;
+    font-weight: normal;
+    text-transform: uppercase;
 }
 
 .crafting-button .tower-cost {
-    font-size: 11px;
-    color: #FFD700;
+    font-size: 10px;
+    color: #a8a88d;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .crafting-button .tower-cost img {
-    width: 13px;
-    height: 13px;
+    width: 11px;
+    height: 11px;
     margin-right: 3px;
+    filter: grayscale(20%);
 }
 
 /* Selected state for crafting buttons */
 .crafting-button.selected {
-    background: linear-gradient(to bottom, #3a8a3e, #357a38);
-    border-color: #4a4a4a;
+    background: #a8a88d;
+    border-color: #c5c5a7;
+    outline: 1px solid #a8a88d;
+    outline-offset: -2px;
+}
+
+.crafting-button.selected .tower-sprite {
+    filter: grayscale(0%) brightness(110%);
 }
 
 .crafting-button.selected:hover {
-    background: linear-gradient(to bottom, #357a38, #306a33);
+    background: #b8b89d;
 }

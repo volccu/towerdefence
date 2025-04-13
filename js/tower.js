@@ -130,8 +130,7 @@ export class Tower {
         this.burstDelay = type.burstDelay || 0;
         this.currentBurst = 0;
         this.burstTimer = 0;
-        
-        // Laser-viivan tilat
+        this.targetingPriority = 'closest';
         this.currentTarget = null;
         this.showLaser = false;
         this.laserCooldown = 0;
@@ -143,6 +142,15 @@ export class Tower {
         }
 
         this.explosions = [];
+    }
+
+    setTargetingPriority(priority) {
+        const validPriorities = ['first', 'last', 'strongest', 'weakest', 'closest'];
+        if (validPriorities.includes(priority)) {
+            console.log(`Changing targeting priority from ${this.targetingPriority} to ${priority}`);
+            this.targetingPriority = priority;
+            this.currentTarget = null; // Reset current target when priority changes
+        }
     }
 
     update(currentTime) {
@@ -166,26 +174,24 @@ export class Tower {
             }
         }
         
-        // Etsi lähin kohde
-        let closestCreep = null;
-        let closestDistance = this.range;
-        
-        for (const creep of this.game.creeps) {
-            if (!creep.isAlive) continue;
+        // Find all creeps within range
+        const creepsInRange = this.game.creeps.filter(creep => {
+            if (!creep.isAlive) return false;
             
             const dx = creep.x - (this.x + this.width / 2);
             const dy = creep.y - (this.y + this.height / 2);
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            if (distance <= this.range && (!closestCreep || distance < closestDistance)) {
-                closestCreep = creep;
-                closestDistance = distance;
-            }
-        }
+            return distance <= this.range;
+        });
         
-        // Päivitä kohde ja laser
-        if (closestCreep) {
-            this.currentTarget = closestCreep;
+        // Select target based on priority
+        if (creepsInRange.length > 0) {
+            const newTarget = this.selectTarget(creepsInRange);
+            if (newTarget !== this.currentTarget) {
+                console.log(`Tower at (${this.gridX},${this.gridY}) changed target based on ${this.targetingPriority} priority`);
+                this.currentTarget = newTarget;
+            }
             this.showLaser = this.laserCooldown === 0;
             this.currentBurst = this.burstCount;
             this.burstTimer = 0;
@@ -195,12 +201,10 @@ export class Tower {
         }
         
         // Check if tower can fire
-        if (currentTime - this.lastFireTime >= 1000 / this.fireRate) {
-            if (closestCreep) {
-                this.fireAt(closestCreep);
-                this.lastFireTime = currentTime;
-                this.laserCooldown = 200;
-            }
+        if (this.currentTarget && currentTime - this.lastFireTime >= 1000 / this.fireRate) {
+            this.fireAt(this.currentTarget);
+            this.lastFireTime = currentTime;
+            this.laserCooldown = 200;
         }
         
         // Update projectiles
@@ -457,6 +461,47 @@ export class Tower {
         // Piirrä räjähdykset
         for (const explosion of this.explosions) {
             explosion.draw(ctx);
+        }
+    }
+
+    selectTarget(creeps) {
+        if (creeps.length === 0) return null;
+
+        switch (this.targetingPriority) {
+            case 'first':
+                return creeps.reduce((furthest, current) => {
+                    if (!furthest) return current;
+                    return current.pathIndex > furthest.pathIndex ? current : furthest;
+                });
+            case 'last':
+                return creeps.reduce((earliest, current) => {
+                    if (!earliest) return current;
+                    return current.pathIndex < earliest.pathIndex ? current : earliest;
+                });
+            case 'strongest':
+                return creeps.reduce((strongest, current) => {
+                    if (!strongest) return current;
+                    return current.health > strongest.health ? current : strongest;
+                });
+            case 'weakest':
+                return creeps.reduce((weakest, current) => {
+                    if (!weakest) return current;
+                    return current.health < weakest.health ? current : weakest;
+                });
+            case 'closest':
+            default:
+                return creeps.reduce((closest, current) => {
+                    if (!closest) return current;
+                    const distClosest = Math.sqrt(
+                        Math.pow(closest.x - (this.x + this.width / 2), 2) + 
+                        Math.pow(closest.y - (this.y + this.height / 2), 2)
+                    );
+                    const distCurrent = Math.sqrt(
+                        Math.pow(current.x - (this.x + this.width / 2), 2) + 
+                        Math.pow(current.y - (this.y + this.height / 2), 2)
+                    );
+                    return distCurrent < distClosest ? current : closest;
+                });
         }
     }
 }

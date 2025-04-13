@@ -68,6 +68,41 @@ class Game {
                 "All is lost..."
             ]
         };
+        
+        // Add targeting priority UI elements
+        this.targetingPriorityDiv = document.createElement('div');
+        this.targetingPriorityDiv.className = 'targeting-priority';
+        this.targetingPriorityDiv.style.display = 'none';
+        document.body.appendChild(this.targetingPriorityDiv);
+        
+        // Add CSS for targeting priority UI
+        const style = document.createElement('style');
+        style.textContent = `
+            .targeting-priority {
+                position: absolute;
+                background: rgba(0, 0, 0, 0.8);
+                padding: 10px;
+                border-radius: 5px;
+                color: white;
+                z-index: 1000;
+            }
+            .targeting-priority button {
+                margin: 2px;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 3px;
+                background: #444;
+                color: white;
+                cursor: pointer;
+            }
+            .targeting-priority button.active {
+                background: #666;
+            }
+            .targeting-priority button:hover {
+                background: #555;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     // Helper function to draw images with preserved aspect ratio
@@ -783,6 +818,30 @@ class Game {
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
             
+            // Check if we have a selected tower and tower info buttons
+            if (this.selectedTower && this.towerInfoButtons) {
+                // Check if click was on any tower info button
+                for (const button of this.towerInfoButtons) {
+                    if (x >= button.x && x <= button.x + button.width &&
+                        y >= button.y && y <= button.y + button.height) {
+                        
+                        if (button.isUpgrade) {
+                            // Handle upgrade button click
+                            if (this.scraps >= this.selectedTower.upgradeCost) {
+                                this.scraps -= this.selectedTower.upgradeCost;
+                                this.selectedTower.upgrade();
+                            }
+                        } else if (button.priority) {
+                            // Handle targeting priority button click
+                            this.selectedTower.setTargetingPriority(button.priority);
+                            // Force redraw of tower info
+                            this.drawTowerUpgradeInfo();
+                        }
+                        return; // Exit after handling button click
+                    }
+                }
+            }
+
             // Check dev menu buttons if visible
             if (this.devMenuVisible) {
                 // Define Kill All button rect here or reference from a central place
@@ -1121,6 +1180,34 @@ class Game {
                 });
             });
         }
+
+        // Add click handler for tower info buttons
+        this.canvas.addEventListener('click', (e) => {
+            if (!this.selectedTower || !this.towerInfoButtons) return;
+
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Check if click was on a targeting priority button
+            for (const button of this.towerInfoButtons) {
+                if (x >= button.x && x <= button.x + button.width &&
+                    y >= button.y && y <= button.y + button.height) {
+                    
+                    if (button.isUpgrade) {
+                        // Handle upgrade button click
+                        if (this.scraps >= this.selectedTower.upgradeCost) {
+                            this.scraps -= this.selectedTower.upgradeCost;
+                            this.selectedTower.upgrade();
+                        }
+                    } else if (button.priority) {
+                        // Handle targeting priority button click
+                        this.selectedTower.setTargetingPriority(button.priority);
+                    }
+                    return; // Exit after handling button click
+                }
+            }
+        });
     }
 
     restartGame() {
@@ -1937,37 +2024,78 @@ class Game {
     }
 
     drawHealthBar() {
-        const barWidth = 200 * this.scaleFactor;
-        const barHeight = 20 * this.scaleFactor;
-        const barX = this.canvas.width / 2 - barWidth / 2;
-        const barY = 20 * this.scaleFactor;
+        if (!this.maxLives) return;
+
+        const ctx = this.ctx;
+        const padding = 20;
+        const bottomOffset = 20;
         
-        // Draw background
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+        // Health bar dimensions and position
+        const barWidth = 300;
+        const barHeight = 24;
+        const barX = this.gameArea.x + padding;
+        const barY = this.gameArea.y + this.gameArea.height - barHeight - bottomOffset;
         
-        // Draw health portion
-        const healthPortion = this.playerLives / 10; // Assuming max lives is 10
-        this.ctx.fillStyle = healthPortion > 0.5 ? '#00FF00' : healthPortion > 0.25 ? '#FFFF00' : '#FF0000';
-        this.ctx.globalAlpha = this.damageFlash.healthBarAlpha;
-        this.ctx.fillRect(barX, barY, barWidth * healthPortion, barHeight);
-        this.ctx.globalAlpha = 1.0;
+        // Draw background panel
+        ctx.fillStyle = 'rgba(32, 32, 36, 0.85)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
         
-        // Draw border
-        this.ctx.strokeStyle = '#FFFFFF';
-        this.ctx.lineWidth = 2;
-        this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+        const panelPadding = 15;
+        const panelWidth = barWidth + (panelPadding * 2);
+        const panelHeight = barHeight + (panelPadding * 2);
         
-        // Draw lives text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = `${16 * this.scaleFactor}px "VT323", monospace`;
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            `Lives: ${this.playerLives}`,
-            this.canvas.width / 2,
-            barY + barHeight / 2
+        ctx.fillRect(barX - panelPadding, barY - panelPadding, panelWidth, panelHeight);
+        ctx.strokeRect(barX - panelPadding, barY - panelPadding, panelWidth, panelHeight);
+        
+        // Add geometric accents
+        ctx.beginPath();
+        ctx.moveTo(barX - panelPadding + 5, barY - panelPadding + 5);
+        ctx.lineTo(barX - panelPadding + 15, barY - panelPadding + 5);
+        ctx.moveTo(barX - panelPadding + 5, barY - panelPadding + 5);
+        ctx.lineTo(barX - panelPadding + 5, barY - panelPadding + 15);
+        ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
+        ctx.stroke();
+        
+        // Draw health bar background
+        ctx.fillStyle = 'rgba(40, 40, 45, 0.8)';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        
+        // Calculate health percentage
+        const healthPercentage = this.lives / this.maxLives;
+        
+        // Draw health bar fill
+        const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth * healthPercentage, barY);
+        gradient.addColorStop(0, 'rgba(140, 180, 255, 0.9)');
+        gradient.addColorStop(1, 'rgba(140, 180, 255, 0.6)');
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(barX, barY, barWidth * healthPercentage, barHeight);
+        
+        // Draw health bar border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+        
+        // Draw health text
+        ctx.font = '16px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText(
+            `${this.lives}/${this.maxLives}`,
+            barX + barWidth/2,
+            barY + barHeight/2 + 5
         );
+        
+        // Add subtle grid pattern
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 0.5;
+        
+        for (let x = barX; x <= barX + barWidth; x += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, barY);
+            ctx.lineTo(x, barY + barHeight);
+            ctx.stroke();
+        }
     }
 
     drawTowerWireframe() {
@@ -2110,169 +2238,279 @@ class Game {
     }
 
     drawGameOverScreen() {
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        const ctx = this.ctx;
         
-        this.ctx.fillStyle = '#FF0000';
-        this.ctx.font = '40px "VT323", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
+        // Semi-transparent dark overlay
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '22px "VT323", monospace';
-        this.ctx.fillText(`You reached wave: ${this.waveReached}`, this.canvas.width / 2, this.canvas.height / 2 + 40);
+        // Game over panel
+        const panelWidth = 400;
+        const panelHeight = 250;
+        const panelX = this.canvas.width/2 - panelWidth/2;
+        const panelY = this.canvas.height/2 - panelHeight/2;
         
-        this.ctx.fillStyle = '#4CAF50';
-        this.ctx.fillRect(
-            this.restartButton.x,
-            this.restartButton.y,
-            this.restartButton.width,
-            this.restartButton.height
-        );
+        // Draw panel background
+        ctx.fillStyle = 'rgba(32, 32, 36, 0.95)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
         
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '20px "VT323", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            this.restartButton.text,
-            this.restartButton.x + this.restartButton.width / 2,
-            this.restartButton.y + this.restartButton.height / 2
-        );
+        ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+        ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+        
+        // Add geometric accents
+        ctx.beginPath();
+        ctx.moveTo(panelX + 5, panelY + 5);
+        ctx.lineTo(panelX + 20, panelY + 5);
+        ctx.moveTo(panelX + 5, panelY + 5);
+        ctx.lineTo(panelX + 5, panelY + 20);
+        
+        ctx.moveTo(panelX + panelWidth - 5, panelY + 5);
+        ctx.lineTo(panelX + panelWidth - 20, panelY + 5);
+        ctx.moveTo(panelX + panelWidth - 5, panelY + 5);
+        ctx.lineTo(panelX + panelWidth - 5, panelY + 20);
+        ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
+        ctx.stroke();
+        
+        // Draw title
+        ctx.font = '32px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText('GAME OVER', this.canvas.width/2, panelY + 60);
+        
+        // Draw wave reached
+        ctx.font = '20px "VT323", monospace';
+        ctx.fillStyle = 'rgba(140, 180, 255, 0.9)';
+        ctx.fillText(`Wave Reached: ${this.currentWave}`, this.canvas.width/2, panelY + 100);
+        
+        // Draw restart button
+        const buttonWidth = 160;
+        const buttonHeight = 40;
+        const buttonX = this.canvas.width/2 - buttonWidth/2;
+        const buttonY = panelY + 150;
+        
+        // Store button position for click detection
+        this.restartButton = {
+            x: buttonX,
+            y: buttonY,
+            width: buttonWidth,
+            height: buttonHeight
+        };
+        
+        // Draw button background
+        ctx.fillStyle = 'rgba(45, 45, 50, 0.8)';
+        ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
+        
+        // Draw button border
+        ctx.strokeStyle = 'rgba(140, 180, 255, 0.4)';
+        ctx.strokeRect(buttonX, buttonY, buttonWidth, buttonHeight);
+        
+        // Add button accents
+        ctx.beginPath();
+        ctx.moveTo(buttonX + 5, buttonY + 5);
+        ctx.lineTo(buttonX + 15, buttonY + 5);
+        ctx.moveTo(buttonX + 5, buttonY + 5);
+        ctx.lineTo(buttonX + 5, buttonY + 15);
+        ctx.stroke();
+        
+        // Draw button text
+        ctx.font = '20px "VT323", monospace';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText('RESTART', this.canvas.width/2, buttonY + 26);
+        
+        // Add subtle grid pattern to panel
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 0.5;
+        
+        for (let x = panelX; x <= panelX + panelWidth; x += 40) {
+            ctx.beginPath();
+            ctx.moveTo(x, panelY);
+            ctx.lineTo(x, panelY + panelHeight);
+            ctx.stroke();
+        }
+        
+        for (let y = panelY; y <= panelY + panelHeight; y += 40) {
+            ctx.beginPath();
+            ctx.moveTo(panelX, y);
+            ctx.lineTo(panelX + panelWidth, y);
+            ctx.stroke();
+        }
     }
 
     drawTowerUpgradeInfo() {
-        if (!this.selectedTower || this.scrapMode || this.selectedTower.isWall || this.selectedTower.isScrapper) {
-            return;
-        }
+        if (!this.selectedTower) return;
+
+        const ctx = this.ctx;
+        const tower = this.selectedTower;
+        const infoX = tower.x + tower.width + 10 + this.gameArea.x;
+        const infoY = tower.y - 30;
+        const buttonWidth = 100;
+        const buttonHeight = 28;
+        const buttonSpacing = 4;
+        const panelPadding = 15;
         
-        // Calculate tooltip position (centered above the tower)
-        const towerCenterX = this.selectedTower.x + this.selectedTower.width / 2 + this.gameArea.x;
-        const towerCenterY = this.selectedTower.y;
+        // Panel background with NieR-style transparency and border
+        ctx.fillStyle = 'rgba(32, 32, 36, 0.85)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
         
-        // Position tooltip above the tower
-        this.towerTooltip.x = towerCenterX - this.towerTooltip.width / 2;
-        this.towerTooltip.y = towerCenterY - this.towerTooltip.height - 20 * this.scaleFactor;
+        const panelWidth = buttonWidth + (panelPadding * 2);
+        const panelHeight = 280;
         
-        // Draw tooltip background
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        this.ctx.fillRect(
-            this.towerTooltip.x,
-            this.towerTooltip.y,
-            this.towerTooltip.width,
-            this.towerTooltip.height
+        // Draw panel background
+        ctx.fillRect(infoX, infoY, panelWidth, panelHeight);
+        ctx.strokeRect(infoX, infoY, panelWidth, panelHeight);
+        
+        // Add subtle geometric accent lines
+        ctx.beginPath();
+        ctx.moveTo(infoX + 5, infoY + 5);
+        ctx.lineTo(infoX + 15, infoY + 5);
+        ctx.moveTo(infoX + 5, infoY + 5);
+        ctx.lineTo(infoX + 5, infoY + 15);
+        ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
+        ctx.stroke();
+        
+        // Draw tower info text
+        ctx.font = '14px "VT323", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        
+        const textX = infoX + panelPadding;
+        ctx.fillText(`Level: ${tower.upgradeLevel}`, textX, infoY + 25);
+        ctx.fillText(`Damage: ${tower.damage}`, textX, infoY + 45);
+        ctx.fillText(`Range: ${tower.range}`, textX, infoY + 65);
+        ctx.fillText(`Targeting:`, textX, infoY + 85);
+        
+        // Draw current targeting priority with accent color
+        ctx.fillStyle = 'rgba(140, 180, 255, 0.9)';
+        ctx.fillText(tower.targetingPriority, textX + 65, infoY + 85);
+        
+        // Clear previous button positions
+        this.towerInfoButtons = [];
+        
+        // Draw targeting priority buttons
+        const priorities = ['first', 'last', 'strongest', 'weakest', 'closest'];
+        let buttonY = infoY + 100;
+        
+        priorities.forEach(priority => {
+            const isActive = tower.targetingPriority === priority;
+            
+            // Button background with hover effect
+            ctx.fillStyle = isActive ? 'rgba(70, 80, 100, 0.9)' : 'rgba(45, 45, 50, 0.8)';
+            ctx.fillRect(textX, buttonY, buttonWidth, buttonHeight);
+            
+            // Button border
+            ctx.strokeStyle = isActive ? 'rgba(140, 180, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(textX, buttonY, buttonWidth, buttonHeight);
+            
+            // Button text
+            ctx.font = '13px "VT323", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = isActive ? 'rgba(140, 180, 255, 0.9)' : 'rgba(255, 255, 255, 0.8)';
+            
+            const displayText = priority.charAt(0).toUpperCase() + priority.slice(1);
+            ctx.fillText(displayText, textX + buttonWidth/2, buttonY + 18);
+            
+            // Add subtle geometric accent to active button
+            if (isActive) {
+                ctx.beginPath();
+                ctx.moveTo(textX + 5, buttonY + 5);
+                ctx.lineTo(textX + 10, buttonY + 5);
+                ctx.moveTo(textX + 5, buttonY + 5);
+                ctx.lineTo(textX + 5, buttonY + 10);
+                ctx.strokeStyle = 'rgba(140, 180, 255, 0.4)';
+                ctx.stroke();
+            }
+            
+            // Store button position for click detection
+            this.towerInfoButtons.push({
+                x: textX,
+                y: buttonY,
+                width: buttonWidth,
+                height: buttonHeight,
+                priority: priority
+            });
+            
+            buttonY += buttonHeight + buttonSpacing;
+        });
+        
+        // Draw upgrade button
+        const upgradeButtonY = buttonY + 10;
+        
+        // Upgrade button background
+        ctx.fillStyle = 'rgba(45, 45, 50, 0.8)';
+        ctx.fillRect(textX, upgradeButtonY, buttonWidth, buttonHeight);
+        
+        // Upgrade button border with accent color
+        ctx.strokeStyle = 'rgba(180, 170, 150, 0.4)';
+        ctx.strokeRect(textX, upgradeButtonY, buttonWidth, buttonHeight);
+        
+        // Upgrade button text
+        ctx.font = '13px "VT323", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillText(
+            `Upgrade (${tower.upgradeCost})`,
+            textX + buttonWidth/2,
+            upgradeButtonY + 18
         );
         
-        // Draw tooltip border
-        this.ctx.strokeStyle = '#666';
-        this.ctx.lineWidth = 1 * this.scaleFactor;
-        this.ctx.strokeRect(
-            this.towerTooltip.x,
-            this.towerTooltip.y,
-            this.towerTooltip.width,
-            this.towerTooltip.height
-        );
-        
-        // Set common font styles
-        this.ctx.font = '20px "VT323", monospace';
-        this.ctx.textAlign = 'left';
-        this.ctx.fillStyle = '#EEEEEE';
-        
-        // Draw tower info
-        this.ctx.fillText(
-            `Damage: ${this.selectedTower.damage}`,
-            this.towerTooltip.x + this.towerTooltip.padding,
-            this.towerTooltip.y + 30 * this.scaleFactor
-        );
-        this.ctx.fillText(
-            `Rate: ${this.selectedTower.fireRate.toFixed(2)}`,
-            this.towerTooltip.x + this.towerTooltip.padding,
-            this.towerTooltip.y + 50 * this.scaleFactor
-        );
-        
-        // Position buttons
-        const buttonY = this.towerTooltip.y + 70 * this.scaleFactor;
-        const buttonSpacing = 10 * this.scaleFactor;
-        const totalButtonWidth = this.towerTooltip.buttons.damage.width + 
-                                this.towerTooltip.buttons.fireRate.width + 
-                                this.towerTooltip.buttons.range.width + 
-                                buttonSpacing * 2;
-        const startX = this.towerTooltip.x + (this.towerTooltip.width - totalButtonWidth) / 2;
-        
-        // Draw upgrade buttons
-        this.drawUpgradeButton('damage', startX, buttonY);
-        this.drawUpgradeButton('fireRate', startX + this.towerTooltip.buttons.damage.width + buttonSpacing, buttonY);
-        this.drawUpgradeButton('range', startX + this.towerTooltip.buttons.damage.width + this.towerTooltip.buttons.fireRate.width + buttonSpacing * 2, buttonY);
-    }
-
-    drawUpgradeButton(buttonType, x, y) {
-        const button = this.towerTooltip.buttons[buttonType];
-        const upgradeButton = this.upgradeButtons[buttonType];
-        
-        // Position button
-        button.x = x;
-        button.y = y;
-        
-        // Draw button background
-        this.ctx.fillStyle = this.scraps >= upgradeButton.cost ? '#4CAF50' : '#666666';
-        this.ctx.fillRect(
-            button.x,
-            button.y,
-            button.width,
-            button.height
-        );
-        
-        // Draw button text
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '16px "VT323", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            upgradeButton.text,
-            button.x + button.width / 2,
-            button.y + button.height / 2
-        );
-        this.ctx.textBaseline = 'alphabetic';
-
-        // Draw cost with scrap icon
-        const costTextY = button.y + button.height + 25 * this.scaleFactor;
-        const costTextString = `${upgradeButton.cost}`;
-        this.ctx.font = '16px "VT323", monospace';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-
-        let costIconX = button.x + button.width / 2 - 15 * this.scaleFactor;
-        const textWidth = this.ctx.measureText(costTextString).width;
-        let totalWidth = textWidth;
-        let iconWidth = 0;
-
-        if (this.assets.isReady()) {
-            const scrapImg = this.assets.getImage('scrap');
-            const scrapSize = 15 * this.scaleFactor;
-            iconWidth = scrapSize;
-            totalWidth += iconWidth + 5 * this.scaleFactor;
-        }
-
-        costIconX = button.x + (button.width - totalWidth) / 2;
-        let costTextX = costIconX;
-
-        if (this.assets.isReady()) {
-            const scrapImg = this.assets.getImage('scrap');
-            const scrapSize = 15 * this.scaleFactor;
-            const iconY = costTextY - scrapSize / 2;
-            const { width: drawnIconWidth } = this.drawImageMaintainAspectRatio(scrapImg, costIconX, iconY, scrapSize, scrapSize, false, true);
-            costTextX = costIconX + drawnIconWidth + 5 * this.scaleFactor;
-        }
-
-        this.ctx.fillText(costTextString, costTextX, costTextY);
-        this.ctx.textBaseline = 'alphabetic';
+        // Store upgrade button position
+        this.towerInfoButtons.push({
+            x: textX,
+            y: upgradeButtonY,
+            width: buttonWidth,
+            height: buttonHeight,
+            isUpgrade: true
+        });
     }
 
     drawStats() {
-        // Draw stats at the top of the screen
-        this.ctx.font = `${24 * this.scaleFactor}px "VT323", monospace`;
-        this.ctx.textAlign = 'left';
-        this.ctx.fillStyle = '#FFF';
+        const ctx = this.ctx;
+        const padding = 20;
+        const topOffset = 20;
+        
+        // Set up the stats panel style
+        ctx.fillStyle = 'rgba(32, 32, 36, 0.85)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = 1;
+        
+        // Draw stats background
+        const statsWidth = 200;
+        const statsHeight = 80;
+        const statsX = this.gameArea.x + this.gameArea.width - statsWidth - padding;
+        const statsY = topOffset;
+        
+        ctx.fillRect(statsX, statsY, statsWidth, statsHeight);
+        ctx.strokeRect(statsX, statsY, statsWidth, statsHeight);
+        
+        // Add geometric accents
+        ctx.beginPath();
+        ctx.moveTo(statsX + 5, statsY + 5);
+        ctx.lineTo(statsX + 15, statsY + 5);
+        ctx.moveTo(statsX + 5, statsY + 5);
+        ctx.lineTo(statsX + 5, statsY + 15);
+        ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
+        ctx.stroke();
+        
+        // Draw stats text
+        ctx.font = '16px "VT323", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        
+        // Wave info with accent color
+        ctx.fillStyle = 'rgba(140, 180, 255, 0.9)';
+        ctx.fillText(`Wave ${this.currentWave}`, statsX + 15, statsY + 25);
+        
+        // Resources and lives
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillText(`Scraps: ${this.scraps}`, statsX + 15, statsY + 45);
+        
+        // Lives with warning color when low
+        const livesColor = this.lives <= 3 ? 'rgba(255, 150, 150, 0.9)' : 'rgba(255, 255, 255, 0.9)';
+        ctx.fillStyle = livesColor;
+        ctx.fillText(`Lives: ${this.lives}`, statsX + 15, statsY + 65);
     }
 
     // Draw the grid with low opacity
@@ -2433,6 +2671,45 @@ class Game {
             const randomMessage = messages[Math.floor(Math.random() * messages.length)];
             this.updateDialogue(randomMessage);
         }
+    }
+
+    updateTowerInfo() {
+        if (!this.selectedTower) {
+            this.targetingPriorityDiv.style.display = 'none';
+            return;
+        }
+
+        // Position the targeting priority UI near the tower
+        this.targetingPriorityDiv.style.display = 'block';
+        this.targetingPriorityDiv.style.left = (this.selectedTower.x + 30) + 'px';
+        this.targetingPriorityDiv.style.top = (this.selectedTower.y - 50) + 'px';
+
+        // Create buttons for each targeting priority
+        const priorities = ['first', 'last', 'strongest', 'weakest', 'closest'];
+        let html = '<div>Targeting Priority:</div>';
+        
+        priorities.forEach(priority => {
+            const isActive = this.selectedTower.targetingPriority === priority;
+            html += `
+                <button 
+                    class="priority-btn ${isActive ? 'active' : ''}"
+                    data-priority="${priority}"
+                >
+                    ${priority.charAt(0).toUpperCase() + priority.slice(1)}
+                </button>
+            `;
+        });
+
+        this.targetingPriorityDiv.innerHTML = html;
+
+        // Add event listeners to the buttons
+        this.targetingPriorityDiv.querySelectorAll('.priority-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const priority = e.target.dataset.priority;
+                this.selectedTower.setTargetingPriority(priority);
+                this.updateTowerInfo(); // Update UI to show new active button
+            });
+        });
     }
 }
 
