@@ -417,63 +417,6 @@ class Game {
             text: "TRY AGAIN"
         };
         
-        // Tower upgrade buttons
-        this.upgradeButtons = {
-            damage: {
-                x: this.uiPanel.x + 20 * this.scaleFactor,
-                y: 500 * this.scaleFactor,
-                width: 60 * this.scaleFactor,
-                height: 30 * this.scaleFactor,
-                text: "DMG +30%",
-                cost: 50
-            },
-            fireRate: {
-                x: this.uiPanel.x + 80 * this.scaleFactor,
-                y: 500 * this.scaleFactor,
-                width: 60 * this.scaleFactor,
-                height: 30 * this.scaleFactor,
-                text: "RATE +20%",
-                cost: 50
-            },
-            range: { // Add range upgrade definition
-                x: this.uiPanel.x + 140 * this.scaleFactor, // Adjust X if needed
-                y: 500 * this.scaleFactor,
-                width: 60 * this.scaleFactor,
-                height: 30 * this.scaleFactor,
-                text: "RANGE +25%", // Define text
-                cost: 50 // Define cost
-            }
-        };
-        
-        // Tower tooltip for upgrades
-        this.towerTooltip = {
-            width: 200 * this.scaleFactor,
-            height: 150 * this.scaleFactor,
-            padding: 8 * this.scaleFactor,
-            visible: false,
-            x: 0,
-            y: 0,
-            buttons: {
-                damage: {
-                    width: 60 * this.scaleFactor,
-                    height: 25 * this.scaleFactor,
-                    text: "DMG +30%",
-                    cost: 50
-                },
-                fireRate: {
-                    width: 60 * this.scaleFactor,
-                    height: 25 * this.scaleFactor,
-                    text: "RATE +20%",
-                    cost: 50
-                },
-                range: { // Add range button definition HERE
-                    width: 60 * this.scaleFactor,
-                    height: 25 * this.scaleFactor
-                    // No text or cost needed here
-                }
-            }
-        };
-        
         // For floating text effects
         this.floatingTexts = [];
         
@@ -576,22 +519,7 @@ class Game {
 
         // Update positions/sizes of any remaining canvas elements (like tooltip buttons, game over button)
         // Tooltip button sizes
-        this.towerTooltip.width = 200 * this.scaleFactor;
-        this.towerTooltip.height = 150 * this.scaleFactor;
-        this.towerTooltip.padding = 8 * this.scaleFactor;
-        if(this.towerTooltip.buttons.damage) {
-           this.towerTooltip.buttons.damage.width = 60 * this.scaleFactor;
-           this.towerTooltip.buttons.damage.height = 25 * this.scaleFactor;
-        }
-         if(this.towerTooltip.buttons.fireRate) {
-           this.towerTooltip.buttons.fireRate.width = 60 * this.scaleFactor;
-           this.towerTooltip.buttons.fireRate.height = 25 * this.scaleFactor;
-        }
-        // Add range if it exists
-        if (this.towerTooltip.buttons.range) {
-             this.towerTooltip.buttons.range.width = 60 * this.scaleFactor;
-             this.towerTooltip.buttons.range.height = 25 * this.scaleFactor;
-         }
+        // Remove towerTooltip references
 
         // Game Over Restart Button Position (center of canvas)
         this.restartButton.width = 120 * this.scaleFactor;
@@ -825,13 +753,7 @@ class Game {
                     if (x >= button.x && x <= button.x + button.width &&
                         y >= button.y && y <= button.y + button.height) {
                         
-                        if (button.isUpgrade) {
-                            // Handle upgrade button click
-                            if (this.scraps >= this.selectedTower.upgradeCost) {
-                                this.scraps -= this.selectedTower.upgradeCost;
-                                this.selectedTower.upgrade();
-                            }
-                        } else if (button.priority) {
+                        if (button.priority) {
                             // Handle targeting priority button click
                             this.selectedTower.setTargetingPriority(button.priority);
                             // Force redraw of tower info
@@ -841,7 +763,7 @@ class Game {
                     }
                 }
             }
-
+            
             // Check dev menu buttons if visible
             if (this.devMenuVisible) {
                 // Define Kill All button rect here or reference from a central place
@@ -877,23 +799,6 @@ class Game {
                 };
                 if (this.isPointInRect(x, y, devMenuRect)) {
                     return; // Stop processing click if inside dev menu area but not on a button
-                }
-            }
-            
-            // Check upgrade buttons when tower is selected and it's not a wall
-            if (this.selectedTower && !this.scrapMode && !this.selectedTower.isWall && !this.selectedTower.isScrapper) {
-                // Check if click is on tooltip buttons
-                if (this.isPointInRect(x, y, this.towerTooltip.buttons.damage)) {
-                    this.upgradeTowerDamage();
-                    return;
-                }
-                if (this.isPointInRect(x, y, this.towerTooltip.buttons.fireRate)) {
-                    this.upgradeTowerFireRate();
-                    return;
-                }
-                if (this.isPointInRect(x, y, this.towerTooltip.buttons.range)) {
-                    this.upgradeTowerRange();
-                    return;
                 }
             }
             
@@ -977,6 +882,14 @@ class Game {
             
             if (this.gameOver) {
                 buttons.push(this.restartButton);
+            }
+            
+            for (const button of buttons) {
+                if (this.isPointInRect(mouseX, mouseY, button)) {
+                    document.body.style.cursor = 'pointer';
+                    isOverButton = true;
+                    break;
+                }
             }
             
             // Check tower tooltip buttons
@@ -1194,13 +1107,7 @@ class Game {
                 if (x >= button.x && x <= button.x + button.width &&
                     y >= button.y && y <= button.y + button.height) {
                     
-                    if (button.isUpgrade) {
-                        // Handle upgrade button click
-                        if (this.scraps >= this.selectedTower.upgradeCost) {
-                            this.scraps -= this.selectedTower.upgradeCost;
-                            this.selectedTower.upgrade();
-                        }
-                    } else if (button.priority) {
+                    if (button.priority) {
                         // Handle targeting priority button click
                         this.selectedTower.setTargetingPriority(button.priority);
                     }
@@ -1257,45 +1164,15 @@ class Game {
     }
 
     upgradeTowerDamage() {
-        if (!this.selectedTower) return;
-        
-        const upgradeCost = this.upgradeButtons.damage.cost;
-        
-        if (this.scraps >= upgradeCost) {
-            this.scraps -= upgradeCost;
-            // Increase damage by 30%
-            this.selectedTower.damage = Math.floor(this.selectedTower.damage * 1.3);
-            // Increase future upgrade cost
-            this.upgradeButtons.damage.cost = Math.floor(upgradeCost * 1.5);
-        }
+        // Method removed
     }
 
     upgradeTowerFireRate() {
-        if (!this.selectedTower) return;
-        
-        const upgradeCost = this.upgradeButtons.fireRate.cost;
-        
-        if (this.scraps >= upgradeCost) {
-            this.scraps -= upgradeCost;
-            // Increase fire rate by 20%
-            this.selectedTower.fireRate *= 1.2;
-            // Increase future upgrade cost
-            this.upgradeButtons.fireRate.cost = Math.floor(upgradeCost * 1.5);
-        }
+        // Method removed
     }
 
     upgradeTowerRange() {
-        if (!this.selectedTower) return;
-        
-        const upgradeCost = this.upgradeButtons.range.cost;
-        
-        if (this.scraps >= upgradeCost) {
-            this.scraps -= upgradeCost;
-            // Increase range by 25%
-            this.selectedTower.range = Math.floor(this.selectedTower.range * 1.25);
-            // Increase future upgrade cost
-            this.upgradeButtons.range.cost = Math.floor(upgradeCost * 1.5);
-        }
+        // Method removed
     }
 
     isPointInRect(x, y, rect) {
@@ -2342,23 +2219,40 @@ class Game {
 
         const ctx = this.ctx;
         const tower = this.selectedTower;
-        const infoX = tower.x + tower.width + 10 + this.gameArea.x;
-        const infoY = tower.y - 30;
-        const buttonWidth = 100;
-        const buttonHeight = 28;
+        const buttonWidth = 85;
+        const buttonHeight = 22;
         const buttonSpacing = 4;
-        const panelPadding = 15;
+        const panelPadding = 12;
         
-        // Panel background with NieR-style transparency and border
-        ctx.fillStyle = 'rgba(32, 32, 36, 0.85)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 1;
-        
+        // Calculate panel dimensions
         const panelWidth = buttonWidth + (panelPadding * 2);
-        const panelHeight = 280;
+        const panelHeight = 190; // Reduced height for compact layout
         
-        // Draw panel background
+        // Calculate initial position (to the right of the tower)
+        let infoX = tower.x + tower.width + 10 + this.gameArea.x;
+        let infoY = tower.y - 30;
+        
+        // Check if tooltip would extend beyond right edge of canvas
+        if (infoX + panelWidth > this.canvas.width) {
+            // Place tooltip to the left of the tower instead
+            infoX = tower.x - panelWidth - 10 + this.gameArea.x;
+        }
+        
+        // Check if tooltip would extend beyond top edge of canvas
+        if (infoY < 0) {
+            infoY = 10; // Keep it slightly below the top edge
+        }
+        
+        // Check if tooltip would extend beyond bottom edge of canvas
+        if (infoY + panelHeight > this.canvas.height) {
+            infoY = this.canvas.height - panelHeight - 10; // Keep it slightly above the bottom edge
+        }
+        
+        // Draw panel background - Match the side tab UI style
+        ctx.fillStyle = 'rgba(42, 42, 42, 0.9)';
         ctx.fillRect(infoX, infoY, panelWidth, panelHeight);
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1;
         ctx.strokeRect(infoX, infoY, panelWidth, panelHeight);
         
         // Add subtle geometric accent lines
@@ -2367,61 +2261,70 @@ class Game {
         ctx.lineTo(infoX + 15, infoY + 5);
         ctx.moveTo(infoX + 5, infoY + 5);
         ctx.lineTo(infoX + 5, infoY + 15);
-        ctx.strokeStyle = 'rgba(180, 170, 150, 0.3)';
+        ctx.strokeStyle = 'rgba(170, 170, 170, 0.3)';
+        ctx.stroke();
+        
+        const textX = infoX + panelPadding;
+        
+        // Draw title section
+        ctx.font = '12px "Share Tech Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('TOWER INFO', textX, infoY + 20);
+        
+        // Draw separator line
+        ctx.beginPath();
+        ctx.moveTo(textX, infoY + 25);
+        ctx.lineTo(textX + buttonWidth, infoY + 25);
+        ctx.strokeStyle = '#444';
         ctx.stroke();
         
         // Draw tower info text
-        ctx.font = '14px "VT323", monospace';
+        ctx.font = '12px "Share Tech Mono", monospace';
         ctx.textAlign = 'left';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillStyle = '#c5c5a7';
         
-        const textX = infoX + panelPadding;
-        ctx.fillText(`Level: ${tower.upgradeLevel}`, textX, infoY + 25);
-        ctx.fillText(`Damage: ${tower.damage}`, textX, infoY + 45);
-        ctx.fillText(`Range: ${tower.range}`, textX, infoY + 65);
-        ctx.fillText(`Targeting:`, textX, infoY + 85);
+        // Draw in two columns to be more compact
+        ctx.fillText(`DMG: ${tower.damage}`, textX, infoY + 40);
+        ctx.fillText(`RNG: ${tower.range}`, textX, infoY + 55);
         
-        // Draw current targeting priority with accent color
-        ctx.fillStyle = 'rgba(140, 180, 255, 0.9)';
-        ctx.fillText(tower.targetingPriority, textX + 65, infoY + 85);
+        // Draw targeting section title
+        ctx.fillStyle = '#aaa';
+        ctx.fillText('TARGETING', textX, infoY + 75);
+        
+        // Draw separator line
+        ctx.beginPath();
+        ctx.moveTo(textX, infoY + 80);
+        ctx.lineTo(textX + buttonWidth, infoY + 80);
+        ctx.strokeStyle = '#444';
+        ctx.stroke();
         
         // Clear previous button positions
         this.towerInfoButtons = [];
         
         // Draw targeting priority buttons
         const priorities = ['first', 'last', 'strongest', 'weakest', 'closest'];
-        let buttonY = infoY + 100;
+        let buttonY = infoY + 90;
         
         priorities.forEach(priority => {
             const isActive = tower.targetingPriority === priority;
             
             // Button background with hover effect
-            ctx.fillStyle = isActive ? 'rgba(70, 80, 100, 0.9)' : 'rgba(45, 45, 50, 0.8)';
+            ctx.fillStyle = isActive ? '#a8a88d' : '#3a3a3a';
             ctx.fillRect(textX, buttonY, buttonWidth, buttonHeight);
             
             // Button border
-            ctx.strokeStyle = isActive ? 'rgba(140, 180, 255, 0.8)' : 'rgba(255, 255, 255, 0.2)';
+            ctx.strokeStyle = isActive ? '#c5c5a7' : '#555';
             ctx.lineWidth = 1;
             ctx.strokeRect(textX, buttonY, buttonWidth, buttonHeight);
             
             // Button text
-            ctx.font = '13px "VT323", monospace';
+            ctx.font = '11px "Share Tech Mono", monospace';
             ctx.textAlign = 'center';
-            ctx.fillStyle = isActive ? 'rgba(140, 180, 255, 0.9)' : 'rgba(255, 255, 255, 0.8)';
+            ctx.fillStyle = isActive ? '#1a1a1a' : '#c5c5a7';
             
             const displayText = priority.charAt(0).toUpperCase() + priority.slice(1);
-            ctx.fillText(displayText, textX + buttonWidth/2, buttonY + 18);
-            
-            // Add subtle geometric accent to active button
-            if (isActive) {
-                ctx.beginPath();
-                ctx.moveTo(textX + 5, buttonY + 5);
-                ctx.lineTo(textX + 10, buttonY + 5);
-                ctx.moveTo(textX + 5, buttonY + 5);
-                ctx.lineTo(textX + 5, buttonY + 10);
-                ctx.strokeStyle = 'rgba(140, 180, 255, 0.4)';
-                ctx.stroke();
-            }
+            ctx.fillText(displayText, textX + buttonWidth/2, buttonY + 15);
             
             // Store button position for click detection
             this.towerInfoButtons.push({
@@ -2433,36 +2336,6 @@ class Game {
             });
             
             buttonY += buttonHeight + buttonSpacing;
-        });
-        
-        // Draw upgrade button
-        const upgradeButtonY = buttonY + 10;
-        
-        // Upgrade button background
-        ctx.fillStyle = 'rgba(45, 45, 50, 0.8)';
-        ctx.fillRect(textX, upgradeButtonY, buttonWidth, buttonHeight);
-        
-        // Upgrade button border with accent color
-        ctx.strokeStyle = 'rgba(180, 170, 150, 0.4)';
-        ctx.strokeRect(textX, upgradeButtonY, buttonWidth, buttonHeight);
-        
-        // Upgrade button text
-        ctx.font = '13px "VT323", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.fillText(
-            `Upgrade (${tower.upgradeCost})`,
-            textX + buttonWidth/2,
-            upgradeButtonY + 18
-        );
-        
-        // Store upgrade button position
-        this.towerInfoButtons.push({
-            x: textX,
-            y: upgradeButtonY,
-            width: buttonWidth,
-            height: buttonHeight,
-            isUpgrade: true
         });
     }
 
